@@ -1,0 +1,45 @@
+spring:
+  # 默认环境
+  profiles:
+    active: dev
+  mvc:
+    path match:
+      matching-strategy: ant_path_matcher
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/jujiao_yuan
+    username: root
+    password: 1234
+  redis:
+    database: 1
+    host: localhost
+    port: 6379
+    timeout: 5000
+  jackson:
+    date-format: yyyy年MM月dd日 HH:mm:ss
+    timeZone: Asia/Shanghai
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+  reactive:
+    session:
+      cookie:
+        domain: localhost
+  address: 0.0.0.0
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: false
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: isDelete
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+#cos:
+#  client:
+#    accessKey: XXX
+#    secretKey: xxx
+#    region: xxx
+#    bucket: xxx

@@ -1,0 +1,15 @@
+spring:
+
+#  datasource:
+#    url: jdbc:mysql://xxx
+#    driver-class-name: com.mysql.cj.jdbc.Driver
+#    username: xxx
+#    password: xxx
+  session:
+    timeout: 86400
+server:
+  address: 0.0.0.0
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: false
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
