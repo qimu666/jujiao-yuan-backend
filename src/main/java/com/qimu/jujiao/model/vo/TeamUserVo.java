@@ -15,6 +15,5 @@ import java.util.Set;
 public class TeamUserVo implements Serializable {
     private static final long serialVersionUID = 4408963399165943029L;
 
-    private Set<TeamVo> teamList;
-
+    private Set<TeamVo> teamSet;
 }

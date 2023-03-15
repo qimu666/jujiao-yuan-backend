@@ -12,11 +12,13 @@ create table team
     userId        bigint                             null comment '创建人id',
     teamStatus    int      default 0                 not null comment '0 - 公开，1 - 私有，2 - 加密',
     createTime    datetime default CURRENT_TIMESTAMP null comment '创建时间',
-    updateTime    datetime default CURRENT_TIMESTAMP null on update CURRENT_TIMESTAMP,
+    updateTime    datetime default CURRENT_TIMESTAMP null comment '更新时间',
     isDelete      tinyint  default 0                 not null comment '是否删除',
-    announce      varchar(512)                       null
+    announce      varchar(512)                       null comment '公告',
+    usersId       varchar(1024)                              null comment '加入队伍的用户id'
 )
     comment '队伍';
+
 
 -- auto-generated definition
 create table user
@@ -33,8 +35,8 @@ create table user
     userStatus    int      default 0                 not null comment '状态 0 - 正常',
     userRole      int      default 0                 not null comment '用户角色 0 - 普通用户 1 - 管理员',
     tags          varchar(1024)                      null comment '标签 json 列表',
-    teamIds       varchar(512)                       null comment '队伍id列表',
-    userIds       varchar(512)                       null comment '添加的好友',
+    teamIds       varchar(1024)                       null comment '队伍id列表',
+    userIds       varchar(1024)                       null comment '添加的好友',
     createTime    datetime default CURRENT_TIMESTAMP null comment '创建时间',
     updateTime    datetime default CURRENT_TIMESTAMP null on update CURRENT_TIMESTAMP,
     isDelete      tinyint  default 0                 not null comment '是否删除',

@@ -5,16 +5,15 @@ import com.qimu.jujiao.common.ErrorCode;
 import com.qimu.jujiao.common.ResultUtil;
 import com.qimu.jujiao.exception.BusinessException;
 import com.qimu.jujiao.model.vo.TeamUserVo;
+import com.qimu.jujiao.model.vo.TeamVo;
 import com.qimu.jujiao.service.TeamService;
 import com.qimu.jujiao.service.UserService;
 import org.springframework.util.CollectionUtils;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
-import java.util.List;
+import javax.servlet.http.HttpServletRequest;
+import java.util.Set;
 
 /**
  * @Author: QiMu
@@ -31,19 +30,28 @@ public class TeamController {
     @Resource
     private UserService userService;
 
-    @GetMapping("/teamsById")
-    public BaseResponse<TeamUserVo> getTeamsByIds(@RequestParam(required = false) List<Long> teamId) {
-        if (CollectionUtils.isEmpty(teamId)) {
+    @GetMapping("/{teamId}")
+    public BaseResponse<TeamVo> getUsersByTeamId(@PathVariable("teamId") Long teamId, HttpServletRequest request) {
+        if (teamId == null || teamId <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "该用户暂未加入队伍");
         }
-        TeamUserVo teams = teamService.getTeamsList(teamId);
+        TeamVo teams = teamService.getUsersByTeamId(teamId, request);
         return ResultUtil.success(teams);
     }
-
 
     @GetMapping("/teams")
     public BaseResponse<TeamUserVo> getTeams() {
         TeamUserVo teams = teamService.getTeams();
+        return ResultUtil.success(teams);
+    }
+
+
+    @GetMapping("/teamsByIds")
+    public BaseResponse<TeamUserVo> getTeamListByTeamIds(@RequestParam(required = false) Set<Long> teamId, HttpServletRequest request) {
+        if (CollectionUtils.isEmpty(teamId)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "该用户暂未加入队伍");
+        }
+        TeamUserVo teams = teamService.getTeamListByTeamIds(teamId, request);
         return ResultUtil.success(teams);
     }
 }

@@ -6,6 +6,7 @@ import lombok.Data;
 import java.io.Serializable;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 /**
  * @Author: QiMu
@@ -40,5 +41,5 @@ public class TeamVo implements Serializable {
 
     private User user;
 
-    private List<User> userList;
+    private Set<User> userSet;
 }

@@ -13,6 +13,7 @@ import com.qimu.jujiao.model.file.UploadFileRequest;
 import com.qimu.jujiao.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -23,6 +24,8 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.util.Arrays;
+
+import static com.qimu.jujiao.contant.UserConstant.REDIS_KEY;
 
 /**
  * 文件接口
@@ -37,6 +40,9 @@ public class FileController {
 
     @Resource
     private CosManager cosManager;
+
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate;
 
     /**
      * 文件上传
@@ -69,6 +75,7 @@ public class FileController {
             user.setUserAvatarUrl(FileConstant.COS_HOST + filepath);
             cosManager.putObject(filepath, file);
             userService.updateById(user);
+            redisTemplate.delete(REDIS_KEY);
             // 返回可访问地址
             return ResultUtil.success(FileConstant.COS_HOST + filepath);
         } catch (Exception e) {

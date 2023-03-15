@@ -237,6 +237,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
+    public void isLogin(HttpServletRequest request) {
+        if (request == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN, "请先登录");
+        }
+        Object objUser = request.getSession().getAttribute(LOGIN_USER_STATUS);
+        User currentUser = (User) objUser;
+        if (currentUser == null) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN, "请先登录");
+        }
+    }
+
+    @Override
     public User getLoginUser(HttpServletRequest request) {
         if (request == null) {
             return null;
@@ -244,7 +256,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         Object objUser = request.getSession().getAttribute(LOGIN_USER_STATUS);
         User currentUser = (User) objUser;
         if (currentUser == null) {
-            throw new BusinessException(ErrorCode.NOT_LOGIN);
+            throw new BusinessException(ErrorCode.NOT_LOGIN, "请先登录");
         }
         return currentUser;
     }
@@ -300,8 +312,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "该用户不存在");
         }
         Set<String> newTags = updateTag.getTagList();
-        if (newTags.size() > 10) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "最多设置10个标签");
+        if (newTags.size() > 12) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "最多设置12个标签");
         }
         if (!isAdmin(currentUser) && id != currentUser.getId()) {
             throw new BusinessException(ErrorCode.NO_AUTH, "无权限");

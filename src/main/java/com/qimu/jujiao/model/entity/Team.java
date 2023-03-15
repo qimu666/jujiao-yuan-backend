@@ -11,10 +11,11 @@ import java.util.Date;
 
 /**
  * 队伍
+ *
  * @author qimu
  * @TableName team
  */
-@TableName(value ="team")
+@TableName(value = "team")
 @Data
 public class Team implements Serializable {
     /**
@@ -59,6 +60,11 @@ public class Team implements Serializable {
     private Long userId;
 
     /**
+     * 加入队伍的用户id
+     */
+    private String usersId;
+
+    /**
      * 0 - 公开，1 - 私有，2 - 加密
      */
     private Integer teamStatus;
@@ -69,7 +75,7 @@ public class Team implements Serializable {
     private Date createTime;
 
     /**
-     * 
+     * 更新时间
      */
     private Date updateTime;
 
@@ -79,7 +85,7 @@ public class Team implements Serializable {
     private Integer isDelete;
 
     /**
-     * 
+     *
      */
     private String announce;
 

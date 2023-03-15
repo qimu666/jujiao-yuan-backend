@@ -5,19 +5,20 @@
 <mapper namespace="com.qimu.jujiao.mapper.TeamMapper">
 
     <resultMap id="BaseResultMap" type="com.qimu.jujiao.model.entity.Team">
-            <id property="id" column="id" jdbcType="BIGINT"/>
-            <result property="teamName" column="teamName" jdbcType="VARCHAR"/>
-            <result property="teamAvatarUrl" column="teamAvatarUrl" jdbcType="VARCHAR"/>
-            <result property="teamPassword" column="teamPassword" jdbcType="VARCHAR"/>
-            <result property="teamDesc" column="teamDesc" jdbcType="VARCHAR"/>
-            <result property="maxNum" column="maxNum" jdbcType="INTEGER"/>
-            <result property="expireTime" column="expireTime" jdbcType="TIMESTAMP"/>
-            <result property="userId" column="userId" jdbcType="BIGINT"/>
-            <result property="teamStatus" column="teamStatus" jdbcType="INTEGER"/>
-            <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
-            <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
-            <result property="isDelete" column="isDelete" jdbcType="TINYINT"/>
-            <result property="announce" column="announce" jdbcType="VARCHAR"/>
+        <id property="id" column="id" jdbcType="BIGINT"/>
+        <result property="teamName" column="teamName" jdbcType="VARCHAR"/>
+        <result property="teamAvatarUrl" column="teamAvatarUrl" jdbcType="VARCHAR"/>
+        <result property="teamPassword" column="teamPassword" jdbcType="VARCHAR"/>
+        <result property="teamDesc" column="teamDesc" jdbcType="VARCHAR"/>
+        <result property="maxNum" column="maxNum" jdbcType="INTEGER"/>
+        <result property="expireTime" column="expireTime" jdbcType="TIMESTAMP"/>
+        <result property="userId" column="userId" jdbcType="BIGINT"/>
+        <result property="usersId" column="usersId" jdbcType="VARCHAR"/>
+        <result property="teamStatus" column="teamStatus" jdbcType="INTEGER"/>
+        <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
+        <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
+        <result property="isDelete" column="isDelete" jdbcType="TINYINT"/>
+        <result property="announce" column="announce" jdbcType="VARCHAR"/>
     </resultMap>
 
     <sql id="Base_Column_List">
@@ -25,6 +26,6 @@
         teamPassword,teamDesc,maxNum,
         expireTime,userId,teamStatus,
         createTime,updateTime,isDelete,
-        announce
+        announce,usersId
     </sql>
 </mapper>
