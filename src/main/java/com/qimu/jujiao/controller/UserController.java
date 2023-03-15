@@ -8,6 +8,7 @@ import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.request.UpdateTagRequest;
 import com.qimu.jujiao.model.request.UserLoginRequest;
 import com.qimu.jujiao.model.request.UserRegisterRequest;
+import com.qimu.jujiao.model.request.UserUpdatePassword;
 import com.qimu.jujiao.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -140,7 +141,7 @@ public class UserController {
         return ResultUtil.success(userList);
     }
 
-    @PostMapping("/update/user")
+    @PostMapping("/update")
     public BaseResponse<Integer> getUpdateUserById(@RequestBody User user, HttpServletRequest request) {
         if (user == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -158,6 +159,17 @@ public class UserController {
         }
         User currentUser = userService.getLoginUser(request);
         int updateTag = userService.updateTagById(tagRequest, currentUser);
+        redisTemplate.delete(REDIS_KEY);
+        return ResultUtil.success(updateTag);
+    }
+
+    @PostMapping("/update/password")
+    public BaseResponse<Integer> updatePassword(@RequestBody UserUpdatePassword updatePassword, HttpServletRequest request) {
+        if (updatePassword == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR);
+        }
+        User currentUser = userService.getLoginUser(request);
+        int updateTag = userService.updatePasswordById(updatePassword, currentUser);
         redisTemplate.delete(REDIS_KEY);
         return ResultUtil.success(updateTag);
     }

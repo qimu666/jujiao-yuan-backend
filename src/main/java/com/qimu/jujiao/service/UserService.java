@@ -3,6 +3,7 @@ package com.qimu.jujiao.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.request.UpdateTagRequest;
+import com.qimu.jujiao.model.request.UserUpdatePassword;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
@@ -109,4 +110,6 @@ public interface UserService extends IService<User> {
      * @return
      */
     int updateTagById(UpdateTagRequest updateTag, User currentUser);
+
+    int updatePasswordById(UserUpdatePassword updatePassword, User currentUser);
 }

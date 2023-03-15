@@ -9,6 +9,7 @@ import com.qimu.jujiao.exception.BusinessException;
 import com.qimu.jujiao.mapper.UserMapper;
 import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.request.UpdateTagRequest;
+import com.qimu.jujiao.model.request.UserUpdatePassword;
 import com.qimu.jujiao.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -104,6 +105,45 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "注册失败 ");
         }
         return user.getId();
+    }
+
+    @Override
+    public int updatePasswordById(UserUpdatePassword updatePassword, User currentUser) {
+        long id = updatePassword.getId();
+        String oldPassword = updatePassword.getOldPassword();
+        String newPassword = updatePassword.getNewPassword();
+        String checkPassword = updatePassword.getCheckPassword();
+        if (StringUtils.isAnyBlank(oldPassword, newPassword, checkPassword)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "输入有误");
+        }
+        // 密码就不小于8位吧
+        if (oldPassword.length() < 8 || checkPassword.length() < 8 || newPassword.length() < 8) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码小于8位");
+        }
+        // 密码和校验密码相同
+        if (!newPassword.equals(checkPassword)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "输入密码不一致");
+        }
+        if (!isAdmin(currentUser) && currentUser.getId() != id) {
+            throw new BusinessException(ErrorCode.NO_AUTH, "权限不足");
+        }
+
+        String encryptPassword = DigestUtils.md5DigestAsHex((SALT + oldPassword).getBytes(StandardCharsets.UTF_8));
+        QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
+        userQueryWrapper.eq("userAccount", currentUser.getUserAccount());
+        userQueryWrapper.eq("userPassword", encryptPassword);
+        User user = this.getOne(userQueryWrapper);
+        // 用户不存在
+        if (user == null) {
+            log.info("user login failed,userAccount cannot match userPassword");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码错误");
+        }
+
+        String newEncryptPassword = DigestUtils.md5DigestAsHex((SALT + newPassword).getBytes(StandardCharsets.UTF_8));
+
+        currentUser.setUserPassword(newEncryptPassword);
+
+        return userMapper.updateById(currentUser);
     }
 
     @Override
