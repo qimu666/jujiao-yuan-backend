@@ -175,6 +175,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         }
         users = users.stream().map(userService::getSafetyUser).collect(Collectors.toSet());
         User createTeamUser = userService.getById(userId);
+        User safetyUser = userService.getSafetyUser(createTeamUser);
         TeamVo teamVo = new TeamVo();
         teamVo.setId(tid);
         teamVo.setTeamName(teamName);
@@ -185,7 +186,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         teamVo.setTeamStatus(teamStatus);
         teamVo.setCreateTime(createTime);
         teamVo.setAnnounce(announce);
-        teamVo.setUser(createTeamUser);
+        teamVo.setUser(safetyUser);
         teamVo.setUserSet(users);
         return teamVo;
     }
@@ -220,7 +221,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
                 userList.add(userService.getById(id));
             }
             User createUser = userService.getById(team.getUserId());
-            teamVo.setUser(createUser);
+            User safetyUser = userService.getSafetyUser(createUser);
+            teamVo.setUser(safetyUser);
             userList = userList.stream().map(userService::getSafetyUser).collect(Collectors.toSet());
             teamVo.setUserSet(userList);
             users.add(teamVo);
