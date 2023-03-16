@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static com.qimu.jujiao.contant.UserConstant.REDIS_KEY;
+import static com.qimu.jujiao.contant.UserConstant.USER_REDIS_KEY;
 
 
 /**
@@ -38,7 +38,7 @@ public class CacheWarming {
         List<User> list = userService.list(userQueryWrapper);
         List<User> result = list.stream().map(user -> userService.getSafetyUser(user)).collect(Collectors.toList());
         try {
-            redisTemplate.opsForValue().set(REDIS_KEY, result, 5, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(USER_REDIS_KEY, result, 5, TimeUnit.MINUTES);
         } catch (Exception e) {
             log.error("redis set key error", e);
         }

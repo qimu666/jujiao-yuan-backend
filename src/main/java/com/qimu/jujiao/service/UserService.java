@@ -111,5 +111,12 @@ public interface UserService extends IService<User> {
      */
     int updateTagById(UpdateTagRequest updateTag, User currentUser);
 
+    /**
+     * 修改密码
+     *
+     * @param updatePassword
+     * @param currentUser
+     * @return
+     */
     int updatePasswordById(UserUpdatePassword updatePassword, User currentUser);
 }

@@ -4,6 +4,8 @@ import com.qimu.jujiao.common.BaseResponse;
 import com.qimu.jujiao.common.ErrorCode;
 import com.qimu.jujiao.common.ResultUtil;
 import com.qimu.jujiao.exception.BusinessException;
+import com.qimu.jujiao.model.entity.User;
+import com.qimu.jujiao.model.request.TeamJoinRequest;
 import com.qimu.jujiao.model.vo.TeamUserVo;
 import com.qimu.jujiao.model.vo.TeamVo;
 import com.qimu.jujiao.service.TeamService;
@@ -45,7 +47,6 @@ public class TeamController {
         return ResultUtil.success(teams);
     }
 
-
     @GetMapping("/teamsByIds")
     public BaseResponse<TeamUserVo> getTeamListByTeamIds(@RequestParam(required = false) Set<Long> teamId, HttpServletRequest request) {
         if (CollectionUtils.isEmpty(teamId)) {
@@ -53,5 +54,15 @@ public class TeamController {
         }
         TeamUserVo teams = teamService.getTeamListByTeamIds(teamId, request);
         return ResultUtil.success(teams);
+    }
+
+    @PostMapping("/join")
+    public BaseResponse<User> joinTeam(@RequestBody TeamJoinRequest joinTeam, HttpServletRequest request) {
+        if (joinTeam == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR, "加入队伍失败");
+        }
+        User loginUser = userService.getLoginUser(request);
+        User joinUser = teamService.joinTeam(joinTeam, loginUser);
+        return ResultUtil.success(joinUser);
     }
 }

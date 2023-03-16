@@ -8,11 +8,14 @@ import com.qimu.jujiao.exception.BusinessException;
 import com.qimu.jujiao.mapper.TeamMapper;
 import com.qimu.jujiao.model.entity.Team;
 import com.qimu.jujiao.model.entity.User;
+import com.qimu.jujiao.model.request.TeamJoinRequest;
 import com.qimu.jujiao.model.vo.TeamUserVo;
 import com.qimu.jujiao.model.vo.TeamVo;
 import com.qimu.jujiao.service.TeamService;
 import com.qimu.jujiao.service.UserService;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import javax.annotation.Resource;
@@ -26,12 +29,10 @@ import java.util.stream.Collectors;
  * @createDate 2023-03-08 23:14:16
  */
 @Service
-public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
-        implements TeamService {
+public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements TeamService {
 
     @Resource
     private UserService userService;
-
 
     @Override
     public TeamUserVo getTeamListByTeamIds(Set<Long> teamId, HttpServletRequest request) {
@@ -55,6 +56,70 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
         return teamUserVo;
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public User joinTeam(TeamJoinRequest joinTeam, User loginUser) {
+        if (joinTeam == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "加入队伍有误");
+        }
+        Team team = this.getById(joinTeam.getTeamId());
+        Date expireTime = team.getExpireTime();
+
+        // 当前队伍有没有过期
+        if (expireTime != null && expireTime.before(new Date())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "当前队伍已过期");
+        }
+        // 当前队伍有没有私密
+        if (team.getTeamStatus() == 3) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "当前队伍私有,不可加入");
+        }
+        // 当前队伍是不是加密队伍
+        if (team.getTeamStatus() == 2) {
+            if (StringUtils.isBlank(joinTeam.getPassword()) || !joinTeam.getPassword().equals(team.getTeamPassword())) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码错误");
+            }
+        }
+        Gson gson = new Gson();
+        // 当前队伍加入的队员id
+        String usersId = team.getUsersId();
+        Set<Long> userIdList = gson.fromJson(usersId, new TypeToken<Set<Long>>() {
+        }.getType());
+        userIdList = Optional.ofNullable(userIdList).orElse(new HashSet<>());
+        // 当前队伍是不是已经满人了
+        if (userIdList.size() >= team.getMaxNum()) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "当前队伍人数已满");
+        }
+        // 当前用户已经加入的队伍
+        User user = userService.getById(loginUser);
+        String teamIds = user.getTeamIds();
+        Set<Long> loginUserTeamIdList = gson.fromJson(teamIds, new TypeToken<Set<Long>>() {
+        }.getType());
+        loginUserTeamIdList = Optional.ofNullable(loginUserTeamIdList).orElse(new HashSet<>());
+
+        // 最多加入5个队伍
+        if (loginUserTeamIdList.size() > 5) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "最多加入5个队伍");
+        }
+        // 是否已经加入该队伍
+        if (userIdList.contains(loginUser.getId()) || loginUserTeamIdList.contains(joinTeam.getTeamId())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "已经加入过当前队伍");
+        }
+        userIdList.add(loginUser.getId());
+        String newUserid = gson.toJson(userIdList);
+        team.setUsersId(newUserid);
+
+        loginUserTeamIdList.add(joinTeam.getTeamId());
+        String loginTeamsId = gson.toJson(loginUserTeamIdList);
+        user.setTeamIds(loginTeamsId);
+
+        boolean joinTeamStatus = this.updateById(team);
+        boolean loginJoinTeamStatus = userService.updateById(user);
+
+        if (!(joinTeamStatus && loginJoinTeamStatus)) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "加入失败");
+        }
+        return userService.getSafetyUser(user);
+    }
 
     @Override
     public TeamUserVo getTeams() {
@@ -108,6 +173,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
         for (Long id : usersIdSet) {
             users.add(userService.getById(id));
         }
+        users = users.stream().map(userService::getSafetyUser).collect(Collectors.toSet());
         User createTeamUser = userService.getById(userId);
         TeamVo teamVo = new TeamVo();
         teamVo.setId(tid);
@@ -153,9 +219,9 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team>
             for (Long id : userSet) {
                 userList.add(userService.getById(id));
             }
-
             User createUser = userService.getById(team.getUserId());
             teamVo.setUser(createUser);
+            userList = userList.stream().map(userService::getSafetyUser).collect(Collectors.toSet());
             teamVo.setUserSet(userList);
             users.add(teamVo);
         });

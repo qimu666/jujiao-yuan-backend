@@ -25,7 +25,7 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.util.Arrays;
 
-import static com.qimu.jujiao.contant.UserConstant.REDIS_KEY;
+import static com.qimu.jujiao.contant.UserConstant.USER_REDIS_KEY;
 
 /**
  * 文件接口
@@ -75,7 +75,7 @@ public class FileController {
             user.setUserAvatarUrl(FileConstant.COS_HOST + filepath);
             cosManager.putObject(filepath, file);
             userService.updateById(user);
-            redisTemplate.delete(REDIS_KEY);
+            redisTemplate.delete(USER_REDIS_KEY);
             // 返回可访问地址
             return ResultUtil.success(FileConstant.COS_HOST + filepath);
         } catch (Exception e) {
