@@ -86,7 +86,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         }.getType());
         userIdList = Optional.ofNullable(userIdList).orElse(new HashSet<>());
         // 当前队伍是不是已经满人了
-        if (userIdList.size() >= team.getMaxNum()) {
+        // 可以补位两个人
+        if (userIdList.size() >= team.getMaxNum() + 2) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "当前队伍人数已满");
         }
         // 当前用户已经加入的队伍
@@ -97,7 +98,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         loginUserTeamIdList = Optional.ofNullable(loginUserTeamIdList).orElse(new HashSet<>());
 
         // 最多加入5个队伍
-        if (loginUserTeamIdList.size() > 5) {
+        if (!userService.isAdmin(user) && loginUserTeamIdList.size() >= 5) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "最多加入5个队伍");
         }
         // 是否已经加入该队伍
