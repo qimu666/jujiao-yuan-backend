@@ -5,11 +5,16 @@ spring:
   mvc:
     path match:
       matching-strategy: ant_path_matcher
+    format:
+      date-time: yyyy-MM-dd HH:mm:ss
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/jujiao_yuan
     username: root
     password: 1234
+  session:
+    timeout: 86400
+    store-type: redis
   redis:
     database: 1
     host: localhost
@@ -25,7 +30,7 @@ server:
   reactive:
     session:
       cookie:
-        domain: localhost
+        domain: qimuu.icu
   address: 0.0.0.0
 mybatis-plus:
   configuration:
@@ -36,12 +41,22 @@ mybatis-plus:
       logic-delete-field: isDelete
       logic-delete-value: 1
       logic-not-delete-value: 0
-
-
 #  腾讯云cos配置
-#cos:
-#  client:
-#    accessKey: XXX
-#    secretKey: xxx
-#    region: xxx
-#    bucket: xxx
+cos:
+  client:
+    accessKey: XXX
+    secretKey: xxx
+    region: xxx
+    bucket: xxx
+
+
+
+
+
+
+
+
+
+
+
+

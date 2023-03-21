@@ -1,9 +1,7 @@
-package com.qimu.jujiao.model.entity;
+package com.qimu.jujiao.model.request;
 
 import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -12,19 +10,14 @@ import java.io.Serializable;
 import java.util.Date;
 
 /**
- * 队伍
- *
- * @author qimu
- * @TableName team
+ * @Author: QiMu
+ * @Date: 2023年03月16日 14:31
+ * @Version: 1.0
+ * @Description:
  */
-@TableName(value = "team")
 @Data
-public class Team implements Serializable {
-    /**
-     * id
-     */
-    @TableId(type = IdType.AUTO)
-    private Long id;
+public class TeamCreateRequest implements Serializable {
+    private static final long serialVersionUID = -8725457624728490288L;
 
     /**
      * 队伍名
@@ -59,40 +52,12 @@ public class Team implements Serializable {
     private Date expireTime;
 
     /**
-     * 创建人id
-     */
-    private Long userId;
-
-    /**
-     * 加入队伍的用户id
-     */
-    private String usersId;
-
-    /**
      * 0 - 公开，1 - 私有，2 - 加密
      */
     private Integer teamStatus;
 
     /**
-     * 创建时间
-     */
-    private Date createTime;
-
-    /**
-     * 更新时间
-     */
-    private Date updateTime;
-
-    /**
-     * 是否删除
-     */
-    private Integer isDelete;
-
-    /**
      * 公告
      */
     private String announce;
-
-    @TableField(exist = false)
-    private static final long serialVersionUID = 1L;
 }

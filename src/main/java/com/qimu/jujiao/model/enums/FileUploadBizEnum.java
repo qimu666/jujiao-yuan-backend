@@ -13,11 +13,22 @@ import java.util.stream.Collectors;
  * @from <a href="https://yupi.icu">编程导航知识星球</a>
  */
 public enum FileUploadBizEnum {
+    /**
+     * 用户头像
+     */
+    USER_AVATAR("用户头像", "user_avatar"),
+    /**
+     * 队伍头像
+     */
+    TEAM_AVATAR("队伍头像", "team_avatar");
 
-    USER_AVATAR("用户头像", "user_avatar");
-
+    /**
+     * 类型描述
+     */
     private final String text;
-
+    /**
+     * 类型值
+     */
     private final String value;
 
     FileUploadBizEnum(String text, String value) {

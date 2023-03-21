@@ -4,7 +4,9 @@ import com.qimu.jujiao.common.BaseResponse;
 import com.qimu.jujiao.common.ErrorCode;
 import com.qimu.jujiao.common.ResultUtil;
 import com.qimu.jujiao.exception.BusinessException;
+import com.qimu.jujiao.model.entity.Team;
 import com.qimu.jujiao.model.entity.User;
+import com.qimu.jujiao.model.request.TeamCreateRequest;
 import com.qimu.jujiao.model.request.TeamJoinRequest;
 import com.qimu.jujiao.model.vo.TeamUserVo;
 import com.qimu.jujiao.model.vo.TeamVo;
@@ -47,6 +49,23 @@ public class TeamController {
         return ResultUtil.success(teams);
     }
 
+    @PostMapping("/{teamId}")
+    public BaseResponse<Boolean> dissolutionByTeamId(@PathVariable("teamId") Long teamId, HttpServletRequest request) {
+        if (teamId == null || teamId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "该用户暂未加入队伍");
+        }
+        boolean dissolutionTeam = teamService.dissolutionTeam(teamId,request);
+        return ResultUtil.success(dissolutionTeam);
+    }
+
+    @PostMapping("/quit/{teamId}")
+    public BaseResponse<Boolean> quitTeam(@PathVariable("teamId") Long teamId, HttpServletRequest request) {
+        if (teamId == null || teamId <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "该用户暂未加入队伍");
+        }
+        boolean quitTeam = teamService.quitTeam(teamId,request);
+        return ResultUtil.success(quitTeam);
+    }
     @GetMapping("/teamsByIds")
     public BaseResponse<TeamUserVo> getTeamListByTeamIds(@RequestParam(required = false) Set<Long> teamId, HttpServletRequest request) {
         if (CollectionUtils.isEmpty(teamId)) {
@@ -64,5 +83,15 @@ public class TeamController {
         User loginUser = userService.getLoginUser(request);
         User joinUser = teamService.joinTeam(joinTeam, loginUser);
         return ResultUtil.success(joinUser);
+    }
+
+    @PostMapping("/createTeam")
+    public BaseResponse<Boolean> createTeam(@RequestBody TeamCreateRequest teamCreateRequest, HttpServletRequest request) {
+        if (teamCreateRequest == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR, "创建队伍失败");
+        }
+        User loginUser = userService.getLoginUser(request);
+        Boolean team = teamService.createTeam(teamCreateRequest, loginUser);
+        return ResultUtil.success(team);
     }
 }

@@ -2,12 +2,12 @@ package com.qimu.jujiao.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import com.qimu.jujiao.common.ErrorCode;
 import com.qimu.jujiao.exception.BusinessException;
 import com.qimu.jujiao.mapper.TeamMapper;
 import com.qimu.jujiao.model.entity.Team;
 import com.qimu.jujiao.model.entity.User;
+import com.qimu.jujiao.model.request.TeamCreateRequest;
 import com.qimu.jujiao.model.request.TeamJoinRequest;
 import com.qimu.jujiao.model.vo.TeamUserVo;
 import com.qimu.jujiao.model.vo.TeamVo;
@@ -22,6 +22,8 @@ import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static com.qimu.jujiao.utils.StringUtils.stringJsonListToLongSet;
 
 /**
  * @author qimu
@@ -82,9 +84,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         Gson gson = new Gson();
         // 当前队伍加入的队员id
         String usersId = team.getUsersId();
-        Set<Long> userIdList = gson.fromJson(usersId, new TypeToken<Set<Long>>() {
-        }.getType());
-        userIdList = Optional.ofNullable(userIdList).orElse(new HashSet<>());
+        Set<Long> userIdList = stringJsonListToLongSet(usersId);
         // 当前队伍是不是已经满人了
         // 可以补位两个人
         if (userIdList.size() >= team.getMaxNum() + 2) {
@@ -93,9 +93,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         // 当前用户已经加入的队伍
         User user = userService.getById(loginUser);
         String teamIds = user.getTeamIds();
-        Set<Long> loginUserTeamIdList = gson.fromJson(teamIds, new TypeToken<Set<Long>>() {
-        }.getType());
-        loginUserTeamIdList = Optional.ofNullable(loginUserTeamIdList).orElse(new HashSet<>());
+        Set<Long> loginUserTeamIdList = stringJsonListToLongSet(teamIds);
 
         // 最多加入5个队伍
         if (!userService.isAdmin(user) && loginUserTeamIdList.size() >= 5) {
@@ -123,6 +121,126 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean createTeam(TeamCreateRequest teamCreateRequest, User loginUser) {
+
+        if (StringUtils.isAnyBlank(teamCreateRequest.getTeamDesc(), teamCreateRequest.getTeamName(), teamCreateRequest.getAnnounce())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "输入有误");
+        }
+        if (teamCreateRequest.getTeamName().length() > 16) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍名称超过16个字符");
+        }
+        if (teamCreateRequest.getTeamDesc().length() > 50) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍描述超过50个字符");
+        }
+        if (teamCreateRequest.getAnnounce().length() > 50) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍公告超过50个字符");
+        }
+        // 过期时间在当前日期之前
+        if (new Date().after(teamCreateRequest.getExpireTime())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "过期时间不能在当前时间之前");
+        }
+        if (teamCreateRequest.getMaxNum() == null || teamCreateRequest.getMaxNum() > 10) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍最多只能容纳10人");
+        }
+        if (teamCreateRequest.getMaxNum() < 5) {
+            teamCreateRequest.setMaxNum(5);
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍最少要有5人");
+        }
+        int status = Optional.ofNullable(teamCreateRequest.getTeamStatus()).orElse(0);
+        Team team = new Team();
+        // 只有队伍状态为加密才需要设置密码
+        if (status == 3) {
+            if (StringUtils.isBlank(teamCreateRequest.getTeamPassword())) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "加密状态,必须设置密码");
+            }
+            if (teamCreateRequest.getTeamPassword().length() < 8) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍密码长度低于8位");
+            }
+            if (teamCreateRequest.getTeamPassword().length() > 16) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码最长只能设置16位");
+            }
+            team.setTeamPassword(teamCreateRequest.getTeamPassword());
+        }
+        long id = loginUser.getId();
+        User user = userService.getById(id);
+        String teamIds = user.getTeamIds();
+        Gson gson = new Gson();
+        Set<Long> teamIdList = stringJsonListToLongSet(teamIds);
+        if (teamIdList.size() >= 5) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "最多只能拥有5个队伍");
+        }
+        team.setTeamName(teamCreateRequest.getTeamName());
+        team.setTeamDesc(teamCreateRequest.getTeamDesc());
+        team.setMaxNum(teamCreateRequest.getMaxNum());
+        team.setExpireTime(teamCreateRequest.getExpireTime());
+        team.setUserId(loginUser.getId());
+        team.setUsersId("[]");
+        team.setTeamStatus(status);
+        team.setCreateTime(new Date());
+        team.setUpdateTime(new Date());
+        team.setAnnounce(teamCreateRequest.getAnnounce());
+        team.setTeamAvatarUrl(teamCreateRequest.getTeamAvatarUrl());
+        boolean createTeam = this.save(team);
+        if (!createTeam) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "创建队伍失败");
+        }
+
+        Team newTeam = this.getById(team);
+        String usersId = newTeam.getUsersId();
+        Set<Long> usersIdList = stringJsonListToLongSet(usersId);
+        usersIdList.add(loginUser.getId());
+
+        // 新队伍队员列表
+        String users = gson.toJson(usersIdList);
+        newTeam.setUsersId(users);
+
+        teamIdList.add(newTeam.getId());
+        // 用户新队伍json数组
+        String teams = gson.toJson(teamIdList);
+        user.setTeamIds(teams);
+
+        boolean updateUser = userService.updateById(user);
+        boolean updateTeam = this.updateById(newTeam);
+
+        return updateUser && updateTeam;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean dissolutionTeam(Long teamId, HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        Team team = this.getById(teamId);
+        if (!userService.isAdmin(loginUser) && loginUser.getId() != team.getUserId()) {
+            throw new BusinessException(ErrorCode.NOT_LOGIN, "暂无权限");
+        }
+        List<User> users = userService.list();
+        users.forEach(user -> {
+            Set<Long> teamIds = stringJsonListToLongSet(user.getTeamIds());
+            teamIds.remove(team.getId());
+            user.setTeamIds(new Gson().toJson(teamIds));
+            userService.updateById(user);
+        });
+        return this.removeById(team);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean quitTeam(Long teamId, HttpServletRequest request) {
+        User loginUser = userService.getLoginUser(request);
+        Team team = this.getById(teamId);
+        User user = userService.getById(loginUser);
+        Set<Long> teamIds = stringJsonListToLongSet(user.getTeamIds());
+        teamIds.remove(team.getId());
+        Set<Long> userIds = stringJsonListToLongSet(team.getUsersId());
+        userIds.remove(user.getId());
+        Gson gson = new Gson();
+        user.setTeamIds(gson.toJson(teamIds));
+        team.setUsersId(gson.toJson(userIds));
+        return userService.updateById(user) && this.updateById(team);
+    }
+
+    @Override
     public TeamUserVo getTeams() {
         List<Team> teams = this.list();
         TeamUserVo teamUserVo = new TeamUserVo();
@@ -137,7 +255,6 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         User user = userService.getById(loginUser.getId());
         // 当前用户加入的队伍id
         String userTeamIds = user.getTeamIds();
-        Gson gson = new Gson();
         Team team = this.getById(teamId);
 
         String usersId = team.getUsersId();
@@ -154,13 +271,9 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         Date createTime = team.getCreateTime();
         String announce = team.getAnnounce();
         // 当前用户加入的队伍的id
-        Set<Long> userTeamIdSet = gson.fromJson(userTeamIds, new TypeToken<Set<Long>>() {
-        }.getType());
-        userTeamIdSet = Optional.ofNullable(userTeamIdSet).orElse(new HashSet<>());
+        Set<Long> userTeamIdSet = stringJsonListToLongSet(userTeamIds);
 
-        Set<Long> usersIdSet = gson.fromJson(usersId, new TypeToken<Set<Long>>() {
-        }.getType());
-        usersIdSet = Optional.ofNullable(usersIdSet).orElse(new HashSet<>());
+        Set<Long> usersIdSet = stringJsonListToLongSet(usersId);
 
         // 当前用户不是管理员
         // 当前用户加入的队伍的ids中不包含传过来的队伍id
@@ -200,7 +313,6 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
      * @param teamUserVo
      */
     private void teamSet(List<Team> teamList, TeamUserVo teamUserVo) {
-        Gson gson = new Gson();
         Set<TeamVo> users = new HashSet<>();
         teamList.forEach(team -> {
             TeamVo teamVo = new TeamVo();
@@ -214,9 +326,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             teamVo.setTeamStatus(team.getTeamStatus());
             teamVo.setCreateTime(team.getCreateTime());
             teamVo.setAnnounce(team.getAnnounce());
-            Set<Long> userSet = gson.fromJson(usersId, new TypeToken<Set<Long>>() {
-            }.getType());
-            userSet = Optional.ofNullable(userSet).orElse(new HashSet<>());
+            Set<Long> userSet = stringJsonListToLongSet(usersId);
             Set<User> userList = new HashSet<>();
             for (Long id : userSet) {
                 userList.add(userService.getById(id));

@@ -3,6 +3,7 @@ package com.qimu.jujiao.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.qimu.jujiao.model.entity.Team;
 import com.qimu.jujiao.model.entity.User;
+import com.qimu.jujiao.model.request.TeamCreateRequest;
 import com.qimu.jujiao.model.request.TeamJoinRequest;
 import com.qimu.jujiao.model.vo.TeamUserVo;
 import com.qimu.jujiao.model.vo.TeamVo;
@@ -50,4 +51,24 @@ public interface TeamService extends IService<Team> {
      * @return
      */
     User joinTeam(TeamJoinRequest joinTeam, User loginUser);
+
+    /**
+     * 创建新的队伍
+     *
+     * @param teamCreateRequest
+     * @param loginUser
+     * @return
+     */
+    boolean createTeam(TeamCreateRequest teamCreateRequest, User loginUser);
+
+    /**
+     * 解散队伍
+     *
+     * @param teamId
+     * @param request
+     * @return
+     */
+    boolean dissolutionTeam(Long teamId, HttpServletRequest request);
+
+    boolean quitTeam(Long teamId, HttpServletRequest request);
 }
