@@ -51,9 +51,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
 
-
-    private static final String TEAMS_KEY = String.format("jujiao:team:getTeams:%s", "getTeams");
-
+    private static final String BY_TEAM_IDS = String.format("jujiaoyuan:team:getTeamListByTeamIds:%s", "byTeamIds");
+    private static final String TEAMS_KEY = String.format("jujiaoyuan:team:getTeams:%s", "getTeams");
 
     @Override
     public TeamUserVo getTeamListByTeamIds(Set<Long> teamId, HttpServletRequest request) {
@@ -61,10 +60,10 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (CollectionUtils.isEmpty(teamId)) {
             throw new BusinessException(ErrorCode.NULL_ERROR, "信息有误");
         }
-        String byTeamIds = String.format("jujiao:team:getUsersByTeamId:%s", "byTeamIds");
+
         ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
 
-        TeamUserVo teamsList = (TeamUserVo) valueOperations.get(byTeamIds);
+        TeamUserVo teamsList = (TeamUserVo) valueOperations.get(BY_TEAM_IDS);
         if (teamsList != null) {
             return teamsList;
         }
@@ -81,7 +80,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         }).collect(Collectors.toList());
         TeamUserVo teamUserVo = new TeamUserVo();
         teamSet(teamList, teamUserVo);
-        setRedis(byTeamIds, teamUserVo);
+        setRedis(BY_TEAM_IDS, teamUserVo);
         return teamUserVo;
     }
 
@@ -89,7 +88,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
     public TeamUserVo teamQuery(TeamQuery teamQuery, HttpServletRequest request) {
         userService.isLogin(request);
         String searchText = teamQuery.getSearchText();
-        String teamQueryKey = String.format("jujiao:team:teamQuery:%s", searchText);
+        String teamQueryKey = String.format("jujiaoyuan:team:teamQuery:%s", searchText);
         ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
         TeamUserVo teamList = (TeamUserVo) valueOperations.get(teamQueryKey);
         if (teamList != null) {
@@ -167,7 +166,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "加入失败");
         }
         redisTemplate.delete(TEAMS_KEY);
-        String teamIdKey = String.format("jujiao:team:getUsersByTeamId:%s", team.getId());
+        redisTemplate.delete(BY_TEAM_IDS);
+        String teamIdKey = String.format("jujiaoyuan:team:getUsersByTeamId:%s", team.getId());
         redisTemplate.delete(teamIdKey);
         return userService.getSafetyUser(user);
     }
@@ -258,6 +258,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         boolean updateTeam = this.updateById(newTeam);
         if (updateUser && updateTeam) {
             redisTemplate.delete(TEAMS_KEY);
+            redisTemplate.delete(BY_TEAM_IDS);
         }
         return updateUser && updateTeam;
     }
@@ -279,7 +280,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         });
         if (this.removeById(team)) {
             redisTemplate.delete(TEAMS_KEY);
-            String teamIdKey = String.format("jujiao:team:getUsersByTeamId:%s", teamId);
+            redisTemplate.delete(BY_TEAM_IDS);
+            String teamIdKey = String.format("jujiaoyuan:team:getUsersByTeamId:%s", teamId);
             redisTemplate.delete(teamIdKey);
         }
         return this.removeById(team);
@@ -300,7 +302,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         team.setUsersId(gson.toJson(userIds));
         if (userService.updateById(user) && this.updateById(team)) {
             redisTemplate.delete(TEAMS_KEY);
-            String teamIdKey = String.format("jujiao:team:getUsersByTeamId:%s", teamId);
+            redisTemplate.delete(BY_TEAM_IDS);
+            String teamIdKey = String.format("jujiaoyuan:team:getUsersByTeamId:%s", teamId);
             redisTemplate.delete(teamIdKey);
         }
         return userService.updateById(user) && this.updateById(team);
@@ -355,7 +358,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             throw new BusinessException(ErrorCode.NO_AUTH, "暂无权限查看");
         }
         ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
-        String teamIdKey = String.format("jujiao:team:getUsersByTeamId:%s", teamId);
+        String teamIdKey = String.format("jujiaoyuan:team:getUsersByTeamId:%s", teamId);
         TeamVo teams = (TeamVo) valueOperations.get(teamIdKey);
         if (teams != null) {
             return teams;

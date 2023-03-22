@@ -1,5 +1,6 @@
 package com.qimu.jujiao.controller;
 
+import cn.hutool.core.util.RandomUtil;
 import com.qimu.jujiao.common.BaseResponse;
 import com.qimu.jujiao.common.ErrorCode;
 import com.qimu.jujiao.common.ResultUtil;
@@ -91,7 +92,7 @@ public class UserController {
         List<User> list = userService.list();
         List<User> result = list.stream().map(user -> userService.getSafetyUser(user)).collect(Collectors.toList());
         try {
-            redisTemplate.opsForValue().set(userService.redisFormat(loginUser.getId()), result, 100000, TimeUnit.MILLISECONDS);
+            redisTemplate.opsForValue().set(userService.redisFormat(loginUser.getId()), result, 1 + RandomUtil.randomInt(1, 4), TimeUnit.MINUTES);
         } catch (Exception e) {
             log.error("redis set key error", e);
         }
