@@ -5,10 +5,12 @@ import com.qimu.jujiao.model.entity.Team;
 import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.request.TeamCreateRequest;
 import com.qimu.jujiao.model.request.TeamJoinRequest;
+import com.qimu.jujiao.model.request.TeamQuery;
 import com.qimu.jujiao.model.vo.TeamUserVo;
 import com.qimu.jujiao.model.vo.TeamVo;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -70,5 +72,19 @@ public interface TeamService extends IService<Team> {
      */
     boolean dissolutionTeam(Long teamId, HttpServletRequest request);
 
+    /**
+     * 退出队伍
+     * @param teamId
+     * @param request
+     * @return
+     */
     boolean quitTeam(Long teamId, HttpServletRequest request);
+
+    /**
+     * 查询队伍
+     * @param teamQuery
+     * @param request
+     * @return
+     */
+    TeamUserVo teamQuery(TeamQuery teamQuery, HttpServletRequest request);
 }

@@ -22,6 +22,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .allowedOriginPatterns("http://qimuu.icu","https://img.qimuu.icu","https://qimuu.icu","http://localhost:5173/")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
-                .exposedHeaders("*");
+                .exposedHeaders("*")
+                .maxAge(3600);
     }
 }

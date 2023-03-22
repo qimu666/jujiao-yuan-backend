@@ -147,6 +147,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
+    public String redisFormat(Long key) {
+        return String.format("jujiaoyuan:user:search:%s", key);
+    }
+
+    @Override
     public User userLogin(String userAccount, String userPassword, HttpServletRequest request) {
         // 1. 非空
         if (StringUtils.isAnyBlank(userAccount, userPassword)) {

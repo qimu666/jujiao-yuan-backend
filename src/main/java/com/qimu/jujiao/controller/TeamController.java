@@ -8,6 +8,7 @@ import com.qimu.jujiao.model.entity.Team;
 import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.request.TeamCreateRequest;
 import com.qimu.jujiao.model.request.TeamJoinRequest;
+import com.qimu.jujiao.model.request.TeamQuery;
 import com.qimu.jujiao.model.vo.TeamUserVo;
 import com.qimu.jujiao.model.vo.TeamVo;
 import com.qimu.jujiao.service.TeamService;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -48,7 +50,6 @@ public class TeamController {
         TeamUserVo teams = teamService.getTeams();
         return ResultUtil.success(teams);
     }
-
     @PostMapping("/{teamId}")
     public BaseResponse<Boolean> dissolutionByTeamId(@PathVariable("teamId") Long teamId, HttpServletRequest request) {
         if (teamId == null || teamId <= 0) {
@@ -93,5 +94,14 @@ public class TeamController {
         User loginUser = userService.getLoginUser(request);
         Boolean team = teamService.createTeam(teamCreateRequest, loginUser);
         return ResultUtil.success(team);
+    }
+
+    @PostMapping("/search")
+    public BaseResponse<TeamUserVo> teamQuery(@RequestBody TeamQuery teamQuery, HttpServletRequest request) {
+        if (teamQuery == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍不存在");
+        }
+        TeamUserVo teams=teamService.teamQuery(teamQuery,request);
+        return ResultUtil.success(teams);
     }
 }

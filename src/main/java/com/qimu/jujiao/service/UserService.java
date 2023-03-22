@@ -119,4 +119,11 @@ public interface UserService extends IService<User> {
      * @return
      */
     int updatePasswordById(UserUpdatePassword updatePassword, User currentUser);
+
+    /**
+     * redisKey
+     * @param key
+     * @return
+     */
+    String redisFormat(Long key);
 }

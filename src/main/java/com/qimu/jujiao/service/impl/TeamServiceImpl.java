@@ -1,5 +1,7 @@
 package com.qimu.jujiao.service.impl;
 
+import cn.hutool.core.util.RandomUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
 import com.qimu.jujiao.common.ErrorCode;
@@ -9,18 +11,25 @@ import com.qimu.jujiao.model.entity.Team;
 import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.request.TeamCreateRequest;
 import com.qimu.jujiao.model.request.TeamJoinRequest;
+import com.qimu.jujiao.model.request.TeamQuery;
 import com.qimu.jujiao.model.vo.TeamUserVo;
 import com.qimu.jujiao.model.vo.TeamVo;
 import com.qimu.jujiao.service.TeamService;
 import com.qimu.jujiao.service.UserService;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.DigestUtils;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.qimu.jujiao.utils.StringUtils.stringJsonListToLongSet;
@@ -31,16 +40,33 @@ import static com.qimu.jujiao.utils.StringUtils.stringJsonListToLongSet;
  * @createDate 2023-03-08 23:14:16
  */
 @Service
+@Slf4j
 public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements TeamService {
+
+    private static final String SALT = "qimu_team";
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate;
+
+
+    private static final String TEAMS_KEY = String.format("jujiao:team:getTeams:%s", "getTeams");
+
 
     @Override
     public TeamUserVo getTeamListByTeamIds(Set<Long> teamId, HttpServletRequest request) {
         userService.isLogin(request);
         if (CollectionUtils.isEmpty(teamId)) {
             throw new BusinessException(ErrorCode.NULL_ERROR, "信息有误");
+        }
+        String byTeamIds = String.format("jujiao:team:getUsersByTeamId:%s", "byTeamIds");
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+
+        TeamUserVo teamsList = (TeamUserVo) valueOperations.get(byTeamIds);
+        if (teamsList != null) {
+            return teamsList;
         }
         // 获取所有队伍
         List<Team> teams = this.list();
@@ -55,6 +81,28 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         }).collect(Collectors.toList());
         TeamUserVo teamUserVo = new TeamUserVo();
         teamSet(teamList, teamUserVo);
+        setRedis(byTeamIds, teamUserVo);
+        return teamUserVo;
+    }
+
+    @Override
+    public TeamUserVo teamQuery(TeamQuery teamQuery, HttpServletRequest request) {
+        userService.isLogin(request);
+        String searchText = teamQuery.getSearchText();
+        String teamQueryKey = String.format("jujiao:team:teamQuery:%s", searchText);
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        TeamUserVo teamList = (TeamUserVo) valueOperations.get(teamQueryKey);
+        if (teamList != null) {
+            return teamList;
+        }
+        LambdaQueryWrapper<Team> teamLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        teamLambdaQueryWrapper.like(Team::getTeamDesc, searchText.trim())
+                .or().like(Team::getTeamName, searchText.trim());
+        List<Team> teams = this.list(teamLambdaQueryWrapper);
+        // 过滤后的队伍列表
+        TeamUserVo teamUserVo = new TeamUserVo();
+        teamSet(teams, teamUserVo);
+        setRedis(teamQueryKey, teamUserVo);
         return teamUserVo;
     }
 
@@ -75,9 +123,10 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (team.getTeamStatus() == 3) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "当前队伍私有,不可加入");
         }
-        // 当前队伍是不是加密队伍
+        // 当前队伍是加密队伍
+        String encryptPassword = DigestUtils.md5DigestAsHex((SALT + joinTeam.getPassword()).getBytes(StandardCharsets.UTF_8));
         if (team.getTeamStatus() == 2) {
-            if (StringUtils.isBlank(joinTeam.getPassword()) || !joinTeam.getPassword().equals(team.getTeamPassword())) {
+            if (StringUtils.isBlank(joinTeam.getPassword()) || !encryptPassword.equals(team.getTeamPassword())) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码错误");
             }
         }
@@ -117,6 +166,9 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (!(joinTeamStatus && loginJoinTeamStatus)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "加入失败");
         }
+        redisTemplate.delete(TEAMS_KEY);
+        String teamIdKey = String.format("jujiao:team:getUsersByTeamId:%s", team.getId());
+        redisTemplate.delete(teamIdKey);
         return userService.getSafetyUser(user);
     }
 
@@ -150,17 +202,19 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         int status = Optional.ofNullable(teamCreateRequest.getTeamStatus()).orElse(0);
         Team team = new Team();
         // 只有队伍状态为加密才需要设置密码
-        if (status == 3) {
+        if (status == 2) {
             if (StringUtils.isBlank(teamCreateRequest.getTeamPassword())) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "加密状态,必须设置密码");
             }
-            if (teamCreateRequest.getTeamPassword().length() < 8) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍密码长度低于8位");
+            if (teamCreateRequest.getTeamPassword().length() < 6) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍密码长度低于6位");
             }
             if (teamCreateRequest.getTeamPassword().length() > 16) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码最长只能设置16位");
             }
-            team.setTeamPassword(teamCreateRequest.getTeamPassword());
+            // 加密
+            String encryptPassword = DigestUtils.md5DigestAsHex((SALT + teamCreateRequest.getTeamPassword()).getBytes(StandardCharsets.UTF_8));
+            team.setTeamPassword(encryptPassword);
         }
         long id = loginUser.getId();
         User user = userService.getById(id);
@@ -202,7 +256,9 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
 
         boolean updateUser = userService.updateById(user);
         boolean updateTeam = this.updateById(newTeam);
-
+        if (updateUser && updateTeam) {
+            redisTemplate.delete(TEAMS_KEY);
+        }
         return updateUser && updateTeam;
     }
 
@@ -221,6 +277,11 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             user.setTeamIds(new Gson().toJson(teamIds));
             userService.updateById(user);
         });
+        if (this.removeById(team)) {
+            redisTemplate.delete(TEAMS_KEY);
+            String teamIdKey = String.format("jujiao:team:getUsersByTeamId:%s", teamId);
+            redisTemplate.delete(teamIdKey);
+        }
         return this.removeById(team);
     }
 
@@ -237,14 +298,25 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         Gson gson = new Gson();
         user.setTeamIds(gson.toJson(teamIds));
         team.setUsersId(gson.toJson(userIds));
+        if (userService.updateById(user) && this.updateById(team)) {
+            redisTemplate.delete(TEAMS_KEY);
+            String teamIdKey = String.format("jujiao:team:getUsersByTeamId:%s", teamId);
+            redisTemplate.delete(teamIdKey);
+        }
         return userService.updateById(user) && this.updateById(team);
     }
 
     @Override
     public TeamUserVo getTeams() {
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        TeamUserVo teamList = (TeamUserVo) valueOperations.get(TEAMS_KEY);
+        if (teamList != null) {
+            return teamList;
+        }
         List<Team> teams = this.list();
         TeamUserVo teamUserVo = new TeamUserVo();
         teamSet(teams, teamUserVo);
+        setRedis(TEAMS_KEY, teamUserVo);
         return teamUserVo;
     }
 
@@ -282,6 +354,12 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (noPermissions) {
             throw new BusinessException(ErrorCode.NO_AUTH, "暂无权限查看");
         }
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        String teamIdKey = String.format("jujiao:team:getUsersByTeamId:%s", teamId);
+        TeamVo teams = (TeamVo) valueOperations.get(teamIdKey);
+        if (teams != null) {
+            return teams;
+        }
 
         Set<User> users = new HashSet<>();
         for (Long id : usersIdSet) {
@@ -302,9 +380,26 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         teamVo.setAnnounce(announce);
         teamVo.setUser(safetyUser);
         teamVo.setUserSet(users);
+        setRedis(teamIdKey, teamVo);
         return teamVo;
     }
 
+    /**
+     * 设置 redis 3分钟
+     *
+     * @param redisKey
+     * @param data
+     */
+    private void setRedis(String redisKey, Object data) {
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        try {
+            // 解决缓存雪崩
+            int i = RandomUtil.randomInt(1, 5);
+            valueOperations.set(redisKey, data, 1 + i, TimeUnit.MINUTES);
+        } catch (Exception e) {
+            log.error("redis set key error");
+        }
+    }
 
     /**
      * 处理返回信息Vo

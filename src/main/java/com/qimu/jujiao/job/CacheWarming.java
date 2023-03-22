@@ -9,11 +9,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
-import static com.qimu.jujiao.contant.UserConstant.USER_REDIS_KEY;
 
 
 /**
@@ -30,17 +29,21 @@ public class CacheWarming {
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
 
+    private List<Long> mainUserList = Arrays.asList(1L);
+
     // 每天的2点半更新缓存
     @Scheduled(cron = "0 30 2 * * *")
     public void searchList() {
-        QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
-        // Page<User> userPage = userService.page(new Page<>(1, 10), userQueryWrapper);
-        List<User> list = userService.list(userQueryWrapper);
-        List<User> result = list.stream().map(user -> userService.getSafetyUser(user)).collect(Collectors.toList());
-        try {
-            redisTemplate.opsForValue().set(USER_REDIS_KEY, result, 5, TimeUnit.MINUTES);
-        } catch (Exception e) {
-            log.error("redis set key error", e);
+        for (Long mainUserId : mainUserList) {
+            QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
+            // Page<User> userPage = userService.page(new Page<>(1, 10), userQueryWrapper);
+            List<User> list = userService.list(userQueryWrapper);
+            List<User> result = list.stream().map(user -> userService.getSafetyUser(user)).collect(Collectors.toList());
+            try {
+                redisTemplate.opsForValue().set(userService.redisFormat(mainUserId), result, 5, TimeUnit.MINUTES);
+            } catch (Exception e) {
+                log.error("redis set key error", e);
+            }
         }
     }
 }

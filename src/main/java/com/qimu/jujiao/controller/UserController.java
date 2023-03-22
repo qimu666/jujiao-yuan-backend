@@ -24,7 +24,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import static com.qimu.jujiao.contant.UserConstant.USER_REDIS_KEY;
+import static com.qimu.jujiao.contant.UserConstant.LOGIN_USER_STATUS;
 
 /**
  * @Author: QiMu
@@ -83,17 +83,15 @@ public class UserController {
     public BaseResponse<List<User>> searchList(HttpServletRequest request) {
         ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
         // 如果有缓存，直接读缓存
-        List<User> userList = (List<User>) valueOperations.get(USER_REDIS_KEY);
+        User loginUser = (User) request.getSession().getAttribute(LOGIN_USER_STATUS);
+        List<User> userList = (List<User>) valueOperations.get(userService.redisFormat(loginUser.getId()));
         if (userList != null) {
             return ResultUtil.success(userList);
         }
         List<User> list = userService.list();
         List<User> result = list.stream().map(user -> userService.getSafetyUser(user)).collect(Collectors.toList());
-        // if (result.size() > NOT_LONGIN_LOOK_MAX) {
-        //     userService.getLoginUser(request);
-        // }
         try {
-            redisTemplate.opsForValue().set(USER_REDIS_KEY, result, 100000, TimeUnit.MILLISECONDS);
+            redisTemplate.opsForValue().set(userService.redisFormat(loginUser.getId()), result, 100000, TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             log.error("redis set key error", e);
         }
@@ -110,7 +108,8 @@ public class UserController {
         }
         boolean remove = userService.removeById(id);
         if (remove) {
-            redisTemplate.delete(USER_REDIS_KEY);
+            User loginUser = (User) request.getSession().getAttribute(LOGIN_USER_STATUS);
+            redisTemplate.delete(userService.redisFormat(loginUser.getId()));
         }
         return ResultUtil.success(remove);
     }
@@ -148,7 +147,7 @@ public class UserController {
         }
         User currentUser = userService.getLoginUser(request);
         int updateId = userService.updateUser(user, currentUser);
-        redisTemplate.delete(USER_REDIS_KEY);
+        redisTemplate.delete(userService.redisFormat(currentUser.getId()));
         return ResultUtil.success(updateId);
     }
 
@@ -159,7 +158,7 @@ public class UserController {
         }
         User currentUser = userService.getLoginUser(request);
         int updateTag = userService.updateTagById(tagRequest, currentUser);
-        redisTemplate.delete(USER_REDIS_KEY);
+        redisTemplate.delete(userService.redisFormat(currentUser.getId()));
         return ResultUtil.success(updateTag);
     }
 
@@ -170,8 +169,7 @@ public class UserController {
         }
         User currentUser = userService.getLoginUser(request);
         int updateTag = userService.updatePasswordById(updatePassword, currentUser);
-        redisTemplate.delete(USER_REDIS_KEY);
+        redisTemplate.delete(userService.redisFormat(currentUser.getId()));
         return ResultUtil.success(updateTag);
     }
-
 }
