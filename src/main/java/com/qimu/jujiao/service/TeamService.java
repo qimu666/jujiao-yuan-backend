@@ -87,4 +87,12 @@ public interface TeamService extends IService<Team> {
      * @return
      */
     TeamUserVo teamQuery(TeamQuery teamQuery, HttpServletRequest request);
+
+    /**
+     * 处理返回信息Vo
+     *
+     * @param teamList
+     * @return teamUserVo
+     */
+    TeamUserVo teamSet(List<Team> teamList);
 }

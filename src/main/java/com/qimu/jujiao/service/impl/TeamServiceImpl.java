@@ -60,9 +60,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (CollectionUtils.isEmpty(teamId)) {
             throw new BusinessException(ErrorCode.NULL_ERROR, "信息有误");
         }
-
         ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
-
         TeamUserVo teamsList = (TeamUserVo) valueOperations.get(BY_TEAM_IDS);
         if (teamsList != null) {
             return teamsList;
@@ -72,14 +70,14 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         // 过滤后的队伍列表
         List<Team> teamList = teams.stream().filter(team -> {
             for (Long tid : teamId) {
-                if (tid.equals(team.getId())) {
+                // 保留当前没有过期的队伍和搜索的队伍
+                if (!new Date().after(team.getExpireTime()) && tid.equals(team.getId())) {
                     return true;
                 }
             }
             return false;
         }).collect(Collectors.toList());
-        TeamUserVo teamUserVo = new TeamUserVo();
-        teamSet(teamList, teamUserVo);
+        TeamUserVo teamUserVo = teamSet(teamList);
         setRedis(BY_TEAM_IDS, teamUserVo);
         return teamUserVo;
     }
@@ -99,8 +97,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
                 .or().like(Team::getTeamName, searchText.trim());
         List<Team> teams = this.list(teamLambdaQueryWrapper);
         // 过滤后的队伍列表
-        TeamUserVo teamUserVo = new TeamUserVo();
-        teamSet(teams, teamUserVo);
+        TeamUserVo teamUserVo = teamSet(teams);
         setRedis(teamQueryKey, teamUserVo);
         return teamUserVo;
     }
@@ -122,9 +119,11 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (team.getTeamStatus() == 3) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "当前队伍私有,不可加入");
         }
-        // 当前队伍是加密队伍
+        // 队伍密码加密
         String encryptPassword = DigestUtils.md5DigestAsHex((SALT + joinTeam.getPassword()).getBytes(StandardCharsets.UTF_8));
-        if (team.getTeamStatus() == 2) {
+        // 当前队伍是加密队伍
+        // 不是管理员需要密码
+        if (!userService.isAdmin(loginUser) && team.getTeamStatus() == 2) {
             if (StringUtils.isBlank(joinTeam.getPassword()) || !encryptPassword.equals(team.getTeamPassword())) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码错误");
             }
@@ -317,8 +316,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             return teamList;
         }
         List<Team> teams = this.list();
-        TeamUserVo teamUserVo = new TeamUserVo();
-        teamSet(teams, teamUserVo);
+        TeamUserVo teamUserVo = teamSet(teams);
         setRedis(TEAMS_KEY, teamUserVo);
         return teamUserVo;
     }
@@ -408,11 +406,17 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
      * 处理返回信息Vo
      *
      * @param teamList
-     * @param teamUserVo
+     * @return teamUserVo
      */
-    private void teamSet(List<Team> teamList, TeamUserVo teamUserVo) {
+    @Override
+    public TeamUserVo teamSet(List<Team> teamList) {
+        // 过滤过期的队伍
+        List<Team> listTeam = teamList.stream()
+                .filter(team -> !new Date().after(team.getExpireTime()))
+                .collect(Collectors.toList());
+        TeamUserVo teamUserVo = new TeamUserVo();
         Set<TeamVo> users = new HashSet<>();
-        teamList.forEach(team -> {
+        listTeam.forEach(team -> {
             TeamVo teamVo = new TeamVo();
             String usersId = team.getUsersId();
             teamVo.setId(team.getId());
@@ -437,6 +441,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             users.add(teamVo);
         });
         teamUserVo.setTeamSet(users);
+        return teamUserVo;
     }
 }
 
