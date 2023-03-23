@@ -12,6 +12,7 @@ import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.request.TeamCreateRequest;
 import com.qimu.jujiao.model.request.TeamJoinRequest;
 import com.qimu.jujiao.model.request.TeamQuery;
+import com.qimu.jujiao.model.request.TeamUpdateRequest;
 import com.qimu.jujiao.model.vo.TeamUserVo;
 import com.qimu.jujiao.model.vo.TeamVo;
 import com.qimu.jujiao.service.TeamService;
@@ -164,10 +165,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (!(joinTeamStatus && loginJoinTeamStatus)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "加入失败");
         }
-        redisTemplate.delete(TEAMS_KEY);
-        redisTemplate.delete(BY_TEAM_IDS);
         String teamIdKey = String.format("jujiaoyuan:team:getUsersByTeamId:%s", team.getId());
-        redisTemplate.delete(teamIdKey);
+        deleteRedisKey(teamIdKey);
         return userService.getSafetyUser(user);
     }
 
@@ -256,10 +255,95 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         boolean updateUser = userService.updateById(user);
         boolean updateTeam = this.updateById(newTeam);
         if (updateUser && updateTeam) {
-            redisTemplate.delete(TEAMS_KEY);
-            redisTemplate.delete(BY_TEAM_IDS);
+            deleteRedisKey(null);
         }
         return updateUser && updateTeam;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Boolean updateTeam(TeamUpdateRequest teamUpdateRequest, User loginUser) {
+        Long id = teamUpdateRequest.getId();
+        if (id == null || id <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "当前队伍不存在");
+        }
+        if (StringUtils.isAnyBlank(teamUpdateRequest.getTeamName(), teamUpdateRequest.getAnnounce(), teamUpdateRequest.getTeamDesc())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "输入不能为空");
+        }
+        if (teamUpdateRequest.getTeamName().length() > 16) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍名称不能超过16个字符");
+        }
+        if (teamUpdateRequest.getTeamDesc().length() > 50) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍描述不能超过50个字符");
+        }
+        if (teamUpdateRequest.getAnnounce().length() > 50) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍公告不能超过50个字符");
+        }
+        if (teamUpdateRequest.getExpireTime() == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "过期时间不能为空");
+        }
+        // 过期时间在当前日期之前
+        if (new Date().after(teamUpdateRequest.getExpireTime())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "过期时间不能在当前时间之前");
+        }
+        if (teamUpdateRequest.getMaxNum() == null || teamUpdateRequest.getMaxNum() > 10) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍最多只能容纳10人");
+        }
+        if (teamUpdateRequest.getMaxNum() < 5) {
+            teamUpdateRequest.setMaxNum(5);
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍最少要有5人");
+        }
+        Team oldTeam = this.getById(id);
+        if (oldTeam == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR, "队伍不存在");
+        }
+        // 只有管理员或者队伍的创建者可以修改
+        if (oldTeam.getUserId() != loginUser.getId() && !userService.isAdmin(loginUser)) {
+            throw new BusinessException(ErrorCode.NO_AUTH, "暂无权限");
+        }
+        int status = Optional.ofNullable(teamUpdateRequest.getTeamStatus()).orElse(0);
+        if (status == 2) {
+            if (!StringUtils.isBlank(teamUpdateRequest.getTeamPassword())) {
+                if (teamUpdateRequest.getTeamPassword().length() < 6) {
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍密码长度低于6位");
+                }
+                if (teamUpdateRequest.getTeamPassword().length() > 16) {
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码最长只能设置16位");
+                }
+                String encryptPassword = DigestUtils.md5DigestAsHex((SALT + teamUpdateRequest.getTeamPassword()).getBytes(StandardCharsets.UTF_8));
+                oldTeam.setTeamPassword(encryptPassword);
+            }
+            if (StringUtils.isBlank(oldTeam.getTeamPassword())) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "加密状态,必须设置密码");
+            }
+        }
+        oldTeam.setTeamName(teamUpdateRequest.getTeamName());
+        oldTeam.setTeamAvatarUrl(teamUpdateRequest.getTeamAvatarUrl());
+        oldTeam.setTeamDesc(teamUpdateRequest.getTeamDesc());
+        oldTeam.setMaxNum(teamUpdateRequest.getMaxNum());
+        oldTeam.setExpireTime(teamUpdateRequest.getExpireTime());
+        oldTeam.setTeamStatus(teamUpdateRequest.getTeamStatus());
+        oldTeam.setUpdateTime(new Date());
+        oldTeam.setAnnounce(teamUpdateRequest.getAnnounce());
+        boolean update = this.updateById(oldTeam);
+        if (update) {
+            String teamIdKey = String.format("jujiaoyuan:team:getUsersByTeamId:%s", oldTeam.getId());
+            deleteRedisKey(teamIdKey);
+        }
+        return update;
+    }
+
+    /**
+     * 删除redis缓存
+     *
+     * @param redisKey
+     */
+    private void deleteRedisKey(String redisKey) {
+        redisTemplate.delete(TEAMS_KEY);
+        redisTemplate.delete(BY_TEAM_IDS);
+        if (StringUtils.isNotBlank(redisKey)) {
+            redisTemplate.delete(redisKey);
+        }
     }
 
     @Override
@@ -278,10 +362,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             userService.updateById(user);
         });
         if (this.removeById(team)) {
-            redisTemplate.delete(TEAMS_KEY);
-            redisTemplate.delete(BY_TEAM_IDS);
             String teamIdKey = String.format("jujiaoyuan:team:getUsersByTeamId:%s", teamId);
-            redisTemplate.delete(teamIdKey);
+            deleteRedisKey(teamIdKey);
         }
         return this.removeById(team);
     }
@@ -300,10 +382,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         user.setTeamIds(gson.toJson(teamIds));
         team.setUsersId(gson.toJson(userIds));
         if (userService.updateById(user) && this.updateById(team)) {
-            redisTemplate.delete(TEAMS_KEY);
-            redisTemplate.delete(BY_TEAM_IDS);
             String teamIdKey = String.format("jujiaoyuan:team:getUsersByTeamId:%s", teamId);
-            redisTemplate.delete(teamIdKey);
+            deleteRedisKey(teamIdKey);
         }
         return userService.updateById(user) && this.updateById(team);
     }
@@ -443,6 +523,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         teamUserVo.setTeamSet(users);
         return teamUserVo;
     }
+
 }
 
 

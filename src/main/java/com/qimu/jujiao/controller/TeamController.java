@@ -9,6 +9,7 @@ import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.request.TeamCreateRequest;
 import com.qimu.jujiao.model.request.TeamJoinRequest;
 import com.qimu.jujiao.model.request.TeamQuery;
+import com.qimu.jujiao.model.request.TeamUpdateRequest;
 import com.qimu.jujiao.model.vo.TeamUserVo;
 import com.qimu.jujiao.model.vo.TeamVo;
 import com.qimu.jujiao.service.TeamService;
@@ -104,4 +105,15 @@ public class TeamController {
         TeamUserVo teams=teamService.teamQuery(teamQuery,request);
         return ResultUtil.success(teams);
     }
+
+    @PostMapping("/update")
+    public BaseResponse<Boolean> updateTeam(@RequestBody TeamUpdateRequest teamUpdateRequest, HttpServletRequest request) {
+        if (teamUpdateRequest == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR, "修改队伍失败");
+        }
+        User loginUser = userService.getLoginUser(request);
+        Boolean team = teamService.updateTeam(teamUpdateRequest, loginUser);
+        return ResultUtil.success(team);
+    }
+
 }

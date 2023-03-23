@@ -6,6 +6,7 @@ import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.request.TeamCreateRequest;
 import com.qimu.jujiao.model.request.TeamJoinRequest;
 import com.qimu.jujiao.model.request.TeamQuery;
+import com.qimu.jujiao.model.request.TeamUpdateRequest;
 import com.qimu.jujiao.model.vo.TeamUserVo;
 import com.qimu.jujiao.model.vo.TeamVo;
 
@@ -95,4 +96,12 @@ public interface TeamService extends IService<Team> {
      * @return teamUserVo
      */
     TeamUserVo teamSet(List<Team> teamList);
+
+    /**
+     * 修改队伍信息
+     * @param teamUpdateRequest
+     * @param loginUser
+     * @return
+     */
+    Boolean updateTeam(TeamUpdateRequest teamUpdateRequest, User loginUser);
 }
