@@ -174,6 +174,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
                     }
                     String teamIdKey = String.format("jujiaoyuan:team:getUsersByTeamId:%s", team.getId());
                     deleteRedisKey(teamIdKey);
+                    redisTemplate.delete(userService.redisFormat(user.getId()));
                     return userService.getSafetyUser(user);
                 }
             }
@@ -273,6 +274,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         boolean createTeamStatus = userService.updateById(user) && this.updateById(newTeam);
         if (createTeamStatus) {
             deleteRedisKey(null);
+            redisTemplate.delete(userService.redisFormat(user.getId()));
         }
         return createTeamStatus;
     }
@@ -379,6 +381,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         boolean kickOutTeamStatUs = userService.updateById(user) && this.updateById(team);
         if (kickOutTeamStatUs) {
             String teamIdKey = String.format("jujiaoyuan:team:getUsersByTeamId:%s", team.getId());
+            redisTemplate.delete(userService.redisFormat(user.getId()));
             deleteRedisKey(teamIdKey);
         }
         return kickOutTeamStatUs;
@@ -416,6 +419,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (dissolutionTeam) {
             String teamIdKey = String.format("jujiaoyuan:team:getUsersByTeamId:%s", teamId);
             deleteRedisKey(teamIdKey);
+            redisTemplate.delete(userService.redisFormat(loginUser.getId()));
         }
         return dissolutionTeam;
     }
@@ -437,6 +441,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         if (quitUserStatus) {
             String teamIdKey = String.format("jujiaoyuan:team:getUsersByTeamId:%s", teamId);
             deleteRedisKey(teamIdKey);
+            redisTemplate.delete(userService.redisFormat(user.getId()));
         }
         return quitUserStatus;
     }
