@@ -85,14 +85,25 @@ public class UserController {
         ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
         // 如果有缓存，直接读缓存
         User loginUser = (User) request.getSession().getAttribute(LOGIN_USER_STATUS);
-        List<User> userList = (List<User>) valueOperations.get(userService.redisFormat(loginUser.getId()));
-        if (userList != null) {
-            return ResultUtil.success(userList);
+        if (loginUser != null) {
+            List<User> userList = (List<User>) valueOperations.get(userService.redisFormat(loginUser.getId()));
+            if (userList != null) {
+                return ResultUtil.success(userList);
+            }
+        } else {
+            List<User> userList = (List<User>) valueOperations.get("jujiaoyuan:user:notLogin");
+            if (userList != null) {
+                return ResultUtil.success(userList);
+            }
         }
         List<User> list = userService.list();
         List<User> result = list.stream().map(user -> userService.getSafetyUser(user)).collect(Collectors.toList());
         try {
-            redisTemplate.opsForValue().set(userService.redisFormat(loginUser.getId()), result, 1 + RandomUtil.randomInt(1, 4), TimeUnit.MINUTES);
+            if (loginUser != null) {
+                redisTemplate.opsForValue().set(userService.redisFormat(loginUser.getId()), result, 1 + RandomUtil.randomInt(1, 2) / 10, TimeUnit.MINUTES);
+            } else {
+                redisTemplate.opsForValue().set("jujiaoyuan:user:notLogin", result, 10, TimeUnit.MINUTES);
+            }
         } catch (Exception e) {
             log.error("redis set key error", e);
         }

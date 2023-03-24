@@ -11,7 +11,7 @@ import java.io.Serializable;
  * @Description:
  */
 @Data
-public class TeamQuery implements Serializable {
+public class TeamQueryRequest implements Serializable {
     private static final long serialVersionUID = -1968358494521098572L;
 
     /**

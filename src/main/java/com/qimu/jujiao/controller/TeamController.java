@@ -4,12 +4,8 @@ import com.qimu.jujiao.common.BaseResponse;
 import com.qimu.jujiao.common.ErrorCode;
 import com.qimu.jujiao.common.ResultUtil;
 import com.qimu.jujiao.exception.BusinessException;
-import com.qimu.jujiao.model.entity.Team;
 import com.qimu.jujiao.model.entity.User;
-import com.qimu.jujiao.model.request.TeamCreateRequest;
-import com.qimu.jujiao.model.request.TeamJoinRequest;
-import com.qimu.jujiao.model.request.TeamQuery;
-import com.qimu.jujiao.model.request.TeamUpdateRequest;
+import com.qimu.jujiao.model.request.*;
 import com.qimu.jujiao.model.vo.TeamUserVo;
 import com.qimu.jujiao.model.vo.TeamVo;
 import com.qimu.jujiao.service.TeamService;
@@ -19,7 +15,6 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -51,12 +46,13 @@ public class TeamController {
         TeamUserVo teams = teamService.getTeams();
         return ResultUtil.success(teams);
     }
+
     @PostMapping("/{teamId}")
     public BaseResponse<Boolean> dissolutionByTeamId(@PathVariable("teamId") Long teamId, HttpServletRequest request) {
         if (teamId == null || teamId <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "该用户暂未加入队伍");
         }
-        boolean dissolutionTeam = teamService.dissolutionTeam(teamId,request);
+        boolean dissolutionTeam = teamService.dissolutionTeam(teamId, request);
         return ResultUtil.success(dissolutionTeam);
     }
 
@@ -65,9 +61,10 @@ public class TeamController {
         if (teamId == null || teamId <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "该用户暂未加入队伍");
         }
-        boolean quitTeam = teamService.quitTeam(teamId,request);
+        boolean quitTeam = teamService.quitTeam(teamId, request);
         return ResultUtil.success(quitTeam);
     }
+
     @GetMapping("/teamsByIds")
     public BaseResponse<TeamUserVo> getTeamListByTeamIds(@RequestParam(required = false) Set<Long> teamId, HttpServletRequest request) {
         if (CollectionUtils.isEmpty(teamId)) {
@@ -98,11 +95,11 @@ public class TeamController {
     }
 
     @PostMapping("/search")
-    public BaseResponse<TeamUserVo> teamQuery(@RequestBody TeamQuery teamQuery, HttpServletRequest request) {
-        if (teamQuery == null) {
+    public BaseResponse<TeamUserVo> teamQuery(@RequestBody TeamQueryRequest teamQueryRequest, HttpServletRequest request) {
+        if (teamQueryRequest == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍不存在");
         }
-        TeamUserVo teams=teamService.teamQuery(teamQuery,request);
+        TeamUserVo teams = teamService.teamQuery(teamQueryRequest, request);
         return ResultUtil.success(teams);
     }
 
@@ -116,4 +113,13 @@ public class TeamController {
         return ResultUtil.success(team);
     }
 
+    @PostMapping("/kickOutUser")
+    public BaseResponse<Boolean> kickOutTeamByUserId(@RequestBody KickOutUserRequest kickOutUserRequest, HttpServletRequest request) {
+        if (kickOutUserRequest == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR, "该用户不存在");
+        }
+        User loginUser = userService.getLoginUser(request);
+        Boolean kickOut = teamService.kickOutTeamByUserId(kickOutUserRequest, loginUser);
+        return ResultUtil.success(kickOut);
+    }
 }

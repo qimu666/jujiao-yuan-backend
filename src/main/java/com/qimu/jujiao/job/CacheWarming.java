@@ -61,7 +61,7 @@ public class CacheWarming {
                     List<User> list = userService.list(userQueryWrapper);
                     List<User> result = list.stream().map(user -> userService.getSafetyUser(user)).collect(Collectors.toList());
                     try {
-                        redisTemplate.opsForValue().set(userService.redisFormat(mainUserId), result, 1 + RandomUtil.randomInt(1, 5), TimeUnit.MINUTES);
+                        redisTemplate.opsForValue().set(userService.redisFormat(mainUserId), result, 1 + RandomUtil.randomInt(1, 2)/10, TimeUnit.MINUTES);
                     } catch (Exception e) {
                         log.error("redis set key error", e);
                     }

@@ -3,10 +3,7 @@ package com.qimu.jujiao.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.qimu.jujiao.model.entity.Team;
 import com.qimu.jujiao.model.entity.User;
-import com.qimu.jujiao.model.request.TeamCreateRequest;
-import com.qimu.jujiao.model.request.TeamJoinRequest;
-import com.qimu.jujiao.model.request.TeamQuery;
-import com.qimu.jujiao.model.request.TeamUpdateRequest;
+import com.qimu.jujiao.model.request.*;
 import com.qimu.jujiao.model.vo.TeamUserVo;
 import com.qimu.jujiao.model.vo.TeamVo;
 
@@ -83,11 +80,11 @@ public interface TeamService extends IService<Team> {
 
     /**
      * 查询队伍
-     * @param teamQuery
+     * @param teamQueryRequest
      * @param request
      * @return
      */
-    TeamUserVo teamQuery(TeamQuery teamQuery, HttpServletRequest request);
+    TeamUserVo teamQuery(TeamQueryRequest teamQueryRequest, HttpServletRequest request);
 
     /**
      * 处理返回信息Vo
@@ -104,4 +101,12 @@ public interface TeamService extends IService<Team> {
      * @return
      */
     Boolean updateTeam(TeamUpdateRequest teamUpdateRequest, User loginUser);
+
+    /**
+     * 踢出队员
+     * @param userId 队员id
+     * @param loginUser
+     * @return
+     */
+    Boolean kickOutTeamByUserId(KickOutUserRequest userId, User loginUser);
 }
