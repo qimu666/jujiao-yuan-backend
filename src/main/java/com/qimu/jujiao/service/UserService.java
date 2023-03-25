@@ -3,6 +3,7 @@ package com.qimu.jujiao.service;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.request.UpdateTagRequest;
+import com.qimu.jujiao.model.request.UserQueryRequest;
 import com.qimu.jujiao.model.request.UserUpdatePassword;
 
 import javax.servlet.http.HttpServletRequest;
@@ -122,8 +123,18 @@ public interface UserService extends IService<User> {
 
     /**
      * redisKey
+     *
      * @param key
      * @return
      */
     String redisFormat(Long key);
+
+    /**
+     * 搜索用户
+     *
+     * @param userQueryRequest
+     * @param request
+     * @return
+     */
+    List<User> userQuery(UserQueryRequest userQueryRequest, HttpServletRequest request);
 }

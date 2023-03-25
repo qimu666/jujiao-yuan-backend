@@ -6,10 +6,7 @@ import com.qimu.jujiao.common.ErrorCode;
 import com.qimu.jujiao.common.ResultUtil;
 import com.qimu.jujiao.exception.BusinessException;
 import com.qimu.jujiao.model.entity.User;
-import com.qimu.jujiao.model.request.UpdateTagRequest;
-import com.qimu.jujiao.model.request.UserLoginRequest;
-import com.qimu.jujiao.model.request.UserRegisterRequest;
-import com.qimu.jujiao.model.request.UserUpdatePassword;
+import com.qimu.jujiao.model.request.*;
 import com.qimu.jujiao.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -108,6 +105,15 @@ public class UserController {
             log.error("redis set key error", e);
         }
         return ResultUtil.success(result);
+    }
+
+    @PostMapping("/search")
+    public BaseResponse<List<User>> userQuery(@RequestBody UserQueryRequest userQueryRequest, HttpServletRequest request) {
+        if (userQueryRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在");
+        }
+        List<User> users = userService.userQuery(userQueryRequest, request);
+        return ResultUtil.success(users);
     }
 
     @PostMapping("/delete")

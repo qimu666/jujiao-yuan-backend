@@ -1,5 +1,6 @@
 package com.qimu.jujiao.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.google.gson.Gson;
@@ -9,6 +10,7 @@ import com.qimu.jujiao.exception.BusinessException;
 import com.qimu.jujiao.mapper.UserMapper;
 import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.request.UpdateTagRequest;
+import com.qimu.jujiao.model.request.UserQueryRequest;
 import com.qimu.jujiao.model.request.UserUpdatePassword;
 import com.qimu.jujiao.service.UserService;
 import lombok.extern.slf4j.Slf4j;
@@ -152,6 +154,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public String redisFormat(Long key) {
         return String.format("jujiaoyuan:user:search:%s", key);
+    }
+
+    @Override
+    public List<User> userQuery(UserQueryRequest userQueryRequest, HttpServletRequest request) {
+        isLogin(request);
+        String searchText = userQueryRequest.getSearchText();
+        LambdaQueryWrapper<User> userLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        userLambdaQueryWrapper.like(User::getUsername, searchText)
+                .or().like(User::getUserDesc, searchText);
+        return this.list(userLambdaQueryWrapper);
     }
 
     @Override
