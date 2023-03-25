@@ -109,4 +109,12 @@ public interface TeamService extends IService<Team> {
      * @return
      */
     Boolean kickOutTeamByUserId(KickOutUserRequest userId, User loginUser);
+
+    /**
+     * 转交队长
+     * @param transferTeamRequest
+     * @param loginUser
+     * @return
+     */
+    Boolean transferTeam(TransferTeamRequest transferTeamRequest, User loginUser);
 }

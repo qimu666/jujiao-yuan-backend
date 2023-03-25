@@ -122,4 +122,14 @@ public class TeamController {
         Boolean kickOut = teamService.kickOutTeamByUserId(kickOutUserRequest, loginUser);
         return ResultUtil.success(kickOut);
     }
+
+    @PostMapping("/transfer")
+    public BaseResponse<Boolean> transferTeam(@RequestBody TransferTeamRequest transferTeamRequest, HttpServletRequest request) {
+        if (transferTeamRequest == null) {
+            throw new BusinessException(ErrorCode.NULL_ERROR, "操作失败");
+        }
+        User loginUser = userService.getLoginUser(request);
+        Boolean transferTeam = teamService.transferTeam(transferTeamRequest, loginUser);
+        return ResultUtil.success(transferTeam);
+    }
 }

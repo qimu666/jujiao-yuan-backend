@@ -43,15 +43,11 @@ import static com.qimu.jujiao.utils.StringUtils.stringJsonListToLongSet;
 @Service
 @Slf4j
 public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements TeamService {
-
     private static final String SALT = "qimu_team";
-
     @Resource
     private RedissonClient redissonClient;
-
     @Resource
     private UserService userService;
-
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
 
@@ -193,7 +189,6 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean createTeam(TeamCreateRequest teamCreateRequest, User loginUser) {
-
         if (StringUtils.isAnyBlank(teamCreateRequest.getTeamDesc(), teamCreateRequest.getTeamName(), teamCreateRequest.getAnnounce())) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "输入不能为空");
         }
@@ -237,46 +232,63 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         long id = loginUser.getId();
         User user = userService.getById(id);
         String teamIds = user.getTeamIds();
-        Gson gson = new Gson();
-        Set<Long> teamIdList = stringJsonListToLongSet(teamIds);
-        if (!userService.isAdmin(loginUser) && teamIdList.size() >= 5) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "最多只能拥有5个队伍");
-        }
-        team.setTeamName(teamCreateRequest.getTeamName());
-        team.setTeamDesc(teamCreateRequest.getTeamDesc());
-        team.setMaxNum(teamCreateRequest.getMaxNum());
-        team.setExpireTime(teamCreateRequest.getExpireTime());
-        team.setUserId(loginUser.getId());
-        team.setUsersId("[]");
-        team.setTeamStatus(status);
-        team.setCreateTime(new Date());
-        team.setUpdateTime(new Date());
-        team.setAnnounce(teamCreateRequest.getAnnounce());
-        team.setTeamAvatarUrl(teamCreateRequest.getTeamAvatarUrl());
-        boolean createTeam = this.save(team);
-        if (!createTeam) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "创建队伍失败");
-        }
-        Team newTeam = this.getById(team);
-        String usersId = newTeam.getUsersId();
-        Set<Long> usersIdList = stringJsonListToLongSet(usersId);
-        usersIdList.add(loginUser.getId());
+        RLock lock = redissonClient.getLock("jujiaoyuan:create_team");
+        try {
+            // 抢到锁并执行
+            while (true) {
+                if (lock.tryLock(0, -1, TimeUnit.MILLISECONDS)) {
+                    Gson gson = new Gson();
+                    Set<Long> teamIdList = stringJsonListToLongSet(teamIds);
+                    if (!userService.isAdmin(loginUser) && teamIdList.size() >= 5) {
+                        throw new BusinessException(ErrorCode.PARAMS_ERROR, "最多只能拥有5个队伍");
+                    }
+                    team.setTeamName(teamCreateRequest.getTeamName());
+                    team.setTeamDesc(teamCreateRequest.getTeamDesc());
+                    team.setMaxNum(teamCreateRequest.getMaxNum());
+                    team.setExpireTime(teamCreateRequest.getExpireTime());
+                    team.setUserId(loginUser.getId());
+                    team.setUsersId("[]");
+                    team.setTeamStatus(status);
+                    team.setCreateTime(new Date());
+                    team.setUpdateTime(new Date());
+                    team.setAnnounce(teamCreateRequest.getAnnounce());
+                    team.setTeamAvatarUrl(teamCreateRequest.getTeamAvatarUrl());
+                    boolean createTeam = this.save(team);
+                    if (!createTeam) {
+                        throw new BusinessException(ErrorCode.PARAMS_ERROR, "创建队伍失败");
+                    }
+                    Team newTeam = this.getById(team);
+                    String usersId = newTeam.getUsersId();
+                    Set<Long> usersIdList = stringJsonListToLongSet(usersId);
+                    usersIdList.add(loginUser.getId());
 
-        // 新队伍队员列表
-        String users = gson.toJson(usersIdList);
-        newTeam.setUsersId(users);
+                    // 新队伍队员列表
+                    String users = gson.toJson(usersIdList);
+                    newTeam.setUsersId(users);
 
-        teamIdList.add(newTeam.getId());
-        // 用户新队伍json数组
-        String teams = gson.toJson(teamIdList);
-        user.setTeamIds(teams);
+                    teamIdList.add(newTeam.getId());
+                    // 用户新队伍json数组
+                    String teams = gson.toJson(teamIdList);
+                    user.setTeamIds(teams);
 
-        boolean createTeamStatus = userService.updateById(user) && this.updateById(newTeam);
-        if (createTeamStatus) {
-            deleteRedisKey(null);
-            redisTemplate.delete(userService.redisFormat(user.getId()));
+                    boolean createTeamStatus = userService.updateById(user) && this.updateById(newTeam);
+                    if (createTeamStatus) {
+                        deleteRedisKey(null);
+                        redisTemplate.delete(userService.redisFormat(user.getId()));
+                    }
+                    return createTeamStatus;
+                }
+            }
+        } catch (InterruptedException e) {
+            log.error("joinTeam error", e);
+            return false;
+        } finally {
+            // 只能释放自己的锁
+            if (lock.isHeldByCurrentThread()) {
+                System.out.println("unLock: " + Thread.currentThread().getId());
+                lock.unlock();
+            }
         }
-        return createTeamStatus;
     }
 
     @Override
@@ -385,6 +397,44 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             deleteRedisKey(teamIdKey);
         }
         return kickOutTeamStatUs;
+    }
+
+    @Override
+    public Boolean transferTeam(TransferTeamRequest transferTeamRequest, User loginUser) {
+        if (transferTeamRequest.getTeamId() == null || transferTeamRequest.getTeamId() <= 0) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "该队伍不存在");
+        }
+        if (StringUtils.isBlank(transferTeamRequest.getUserAccount())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号不能为空");
+        }
+        Team team = this.getById(transferTeamRequest.getTeamId());
+        LambdaQueryWrapper<User> userLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        userLambdaQueryWrapper.eq(User::getUserAccount, transferTeamRequest.getUserAccount());
+        User user = userService.getOne(userLambdaQueryWrapper);
+        if (user==null){
+            throw new BusinessException(ErrorCode.NULL_ERROR, "该用户不存在");
+        }
+        Set<Long> userIds = stringJsonListToLongSet(team.getUsersId());
+        Set<Long> teamIds = stringJsonListToLongSet(user.getTeamIds());
+
+        // 新队长不在队伍中的、
+        if (!userIds.contains(user.getId()) || !teamIds.contains(transferTeamRequest.getTeamId())) {
+            throw new BusinessException(ErrorCode.KICK_OUT_USER, "输入用户不在队伍中");
+        }
+        // 当前用户不是管理员、当前用户也不是队伍的创建者无法转移
+        if (!userService.isAdmin(loginUser) && loginUser.getId() != team.getUserId()) {
+            throw new BusinessException(ErrorCode.KICK_OUT_USER, "权限不足");
+        }
+        // 队伍的创建者修改为新用户
+        team.setUserId(user.getId());
+        boolean update = this.updateById(team);
+        if (update) {
+            String teamIdKey = String.format("jujiaoyuan:team:getUsersByTeamId:%s", team.getId());
+            redisTemplate.delete(userService.redisFormat(user.getId()));
+            redisTemplate.delete(userService.redisFormat(loginUser.getId()));
+            deleteRedisKey(teamIdKey);
+        }
+        return update;
     }
 
     /**

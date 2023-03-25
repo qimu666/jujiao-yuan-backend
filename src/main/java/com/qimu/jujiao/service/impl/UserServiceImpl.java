@@ -64,6 +64,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (userAccount.length() < 4) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号不能小于4位");
         }
+        if (!StringUtils.isAnyBlank(username) && username.length() > 20) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "昵称不能超过20个字符");
+        }
         // 2. 账户长度不大于16位
         if (userAccount.length() > 16) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "账号不能能大于16位");
@@ -316,7 +319,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (!StringUtils.isAnyBlank(user.getUserDesc()) && user.getUserDesc().length() > 30) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "简介不能超过30个字符");
         }
-
+        if (!StringUtils.isAnyBlank(user.getUsername()) && user.getUsername().length() > 20) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "昵称不能超过20个字符");
+        }
+        if (!StringUtils.isAnyBlank(user.getContactInfo()) && user.getContactInfo().length() > 18) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "昵称不能超过18个字符");
+        }
         // 如果是管理员，允许更新任意用户
         // 如果不是管理员，只允许更新当前（自己的）信息
         if (!isAdmin(currentUser) && userId != currentUser.getId()) {
