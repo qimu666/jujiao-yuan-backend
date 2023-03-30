@@ -87,6 +87,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (!userPassword.equals(checkPassword)) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "输入密码不一致");
         }
+
         // 4. 账户不能重复
         QueryWrapper<User> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("userAccount", userAccount);
@@ -335,7 +336,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "昵称不能超过20个字符");
         }
         if (!StringUtils.isAnyBlank(user.getContactInfo()) && user.getContactInfo().length() > 18) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "昵称不能超过18个字符");
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "联系方式不能超过18个字符");
         }
         // 如果是管理员，允许更新任意用户
         // 如果不是管理员，只允许更新当前（自己的）信息
