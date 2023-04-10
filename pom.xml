@@ -9,10 +9,10 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.qimu</groupId>
-    <artifactId>jujiao-backend</artifactId>
+    <artifactId>jujiao-yuan-backend</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>jujiao-backend</name>
-    <description>jujiao-backend</description>
+    <name>jujiao-yuan-backend</name>
+    <description>jujiao-yuan-backend</description>
 
     <properties>
         <java.version>1.8</java.version>
@@ -88,6 +88,11 @@
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
             <version>5.8.8</version>
+        </dependency>
+        <!-- websocket -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
 
     </dependencies>
