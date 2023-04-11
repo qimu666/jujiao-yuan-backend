@@ -32,9 +32,4 @@ public class WebSocketVo implements Serializable {
      */
     private String userAvatarUrl;
 
-    /**
-     * 添加的好友
-     */
-    private String userIds;
-
 }

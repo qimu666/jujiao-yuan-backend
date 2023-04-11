@@ -23,14 +23,12 @@ import org.springframework.util.DigestUtils;
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.qimu.jujiao.contant.UserConstant.ADMIN_ROLE;
 import static com.qimu.jujiao.contant.UserConstant.LOGIN_USER_STATUS;
+import static com.qimu.jujiao.utils.StringUtils.stringJsonListToLongSet;
 
 
 /**
@@ -162,10 +160,67 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         isLogin(request);
         String searchText = userQueryRequest.getSearchText();
         LambdaQueryWrapper<User> userLambdaQueryWrapper = new LambdaQueryWrapper<>();
-        userLambdaQueryWrapper.like(User::getUsername, searchText)
-                .or().like(User::getUserDesc, searchText);
+        userLambdaQueryWrapper.like(User::getUsername, searchText).or().like(User::getUserDesc, searchText);
         return this.list(userLambdaQueryWrapper);
     }
+
+    @Override
+    public List<User> getFriendsById(User currentUser) {
+        User loginUser = this.getById(currentUser.getId());
+        Set<Long> friendsId = stringJsonListToLongSet(loginUser.getUserIds());
+        return friendsId.stream().map(user -> this.getSafetyUser(this.getById(user))).collect(Collectors.toList());
+    }
+
+    @Override
+    public boolean addUser(User currentUser, Long id) {
+        User loginUser = this.getById(currentUser.getId());
+        User friendUser = this.getById(id);
+        Set<Long> friendsId = stringJsonListToLongSet(loginUser.getUserIds());
+        Set<Long> fid = stringJsonListToLongSet(friendUser.getUserIds());
+        // TODO 添加好友需要对方同意
+        if (friendsId.contains(id) && fid.contains(loginUser.getId())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "不能重复添加好友");
+        }
+        friendsId.add(id);
+        fid.add(loginUser.getId());
+        String friends = new Gson().toJson(friendsId);
+        String fids = new Gson().toJson(fid);
+        loginUser.setUserIds(friends);
+        friendUser.setUserIds(fids);
+        return this.updateById(loginUser) && this.updateById(friendUser);
+    }
+
+    @Override
+    public boolean deleteFriend(User currentUser, Long id) {
+        User loginUser = this.getById(currentUser.getId());
+        User friendUser = this.getById(id);
+        Set<Long> friendsId = stringJsonListToLongSet(loginUser.getUserIds());
+        Set<Long> fid = stringJsonListToLongSet(friendUser.getUserIds());
+        friendsId.remove(id);
+        fid.remove(loginUser.getId());
+        String friends = new Gson().toJson(friendsId);
+        String fids = new Gson().toJson(fid);
+        loginUser.setUserIds(friends);
+        friendUser.setUserIds(fids);
+        return this.updateById(loginUser) && this.updateById(friendUser);
+    }
+
+    @Override
+    public List<User> searchFriend(UserQueryRequest userQueryRequest, User currentUser) {
+        String searchText = userQueryRequest.getSearchText();
+
+        User user = this.getById(currentUser.getId());
+        Set<Long> friendsId = stringJsonListToLongSet(user.getUserIds());
+        List<User> users = new ArrayList<>();
+        friendsId.forEach(id -> {
+            User u = this.getById(id);
+            if (u.getUsername().contains(searchText)) {
+                users.add(u);
+            }
+        });
+        return users;
+    }
+
 
     @Override
     public User userLogin(String userAccount, String userPassword, HttpServletRequest request) {
@@ -233,9 +288,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         safeUser.setUserDesc(originUser.getUserDesc());
         safeUser.setUserStatus(originUser.getUserStatus());
         safeUser.setUserRole(originUser.getUserRole());
+        safeUser.setUserIds(originUser.getUserIds());
         safeUser.setTags(originUser.getTags());
         safeUser.setTeamIds(originUser.getTeamIds());
-        safeUser.setUserIds(originUser.getUserIds());
         safeUser.setCreateTime(originUser.getCreateTime());
         return safeUser;
     }
@@ -251,9 +306,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         // 仅管理员可查询
         Object objUser = request.getSession().getAttribute(LOGIN_USER_STATUS);
         User user = (User) objUser;
-        // if (user == null || user.getUserRole() != ADMIN_ROLE) {
-        //     return false;
-        // }
         return user != null && user.getUserRole() == ADMIN_ROLE;
     }
 
@@ -392,17 +444,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         Set<String> newTagsCapitalize = toCapitalize(newTags);
 
         // 添加 newTagsCapitalize 中 oldTagsCapitalize 中不存在的元素
-        oldTagsCapitalize.addAll(
-                newTagsCapitalize.stream()
-                        .filter(tag -> !oldTagsCapitalize.contains(tag))
-                        .collect(Collectors.toSet())
-        );
+        oldTagsCapitalize.addAll(newTagsCapitalize.stream().filter(tag -> !oldTagsCapitalize.contains(tag)).collect(Collectors.toSet()));
         // 移除 oldTagsCapitalize 中 newTagsCapitalize 中不存在的元素
-        oldTagsCapitalize.removeAll(
-                oldTagsCapitalize.stream()
-                        .filter(tag -> !newTagsCapitalize.contains(tag))
-                        .collect(Collectors.toSet())
-        );
+        oldTagsCapitalize.removeAll(oldTagsCapitalize.stream().filter(tag -> !newTagsCapitalize.contains(tag)).collect(Collectors.toSet()));
         String tagsJson = gson.toJson(oldTagsCapitalize);
         user.setTags(tagsJson);
         return userMapper.updateById(user);

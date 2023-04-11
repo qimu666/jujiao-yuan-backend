@@ -1,13 +1,14 @@
 package com.qimu.jujiao.ws;
 
+import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.google.gson.Gson;
-import com.qimu.jujiao.common.ErrorCode;
-import com.qimu.jujiao.exception.BusinessException;
+import com.qimu.jujiao.model.entity.Chat;
 import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.request.MessageRequest;
 import com.qimu.jujiao.model.vo.MessageVo;
 import com.qimu.jujiao.model.vo.WebSocketVo;
+import com.qimu.jujiao.service.ChatService;
 import com.qimu.jujiao.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -22,11 +23,11 @@ import javax.websocket.Session;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CopyOnWriteArraySet;
+
+import static com.qimu.jujiao.contant.ChatConstant.PRIVATE_CHAT;
+import static com.qimu.jujiao.utils.StringUtils.stringJsonListToLongSet;
 
 @Component
 @Slf4j
@@ -34,10 +35,16 @@ import java.util.concurrent.CopyOnWriteArraySet;
 public class WebSocket {
 
     private static UserService userService;
+    private static ChatService chatService;
 
     @Resource
     public void setHeatMapService(UserService userService) {
         WebSocket.userService = userService;
+    }
+
+    @Resource
+    public void setHeatMapService(ChatService chatService) {
+        WebSocket.chatService = chatService;
     }
 
     /**
@@ -54,11 +61,11 @@ public class WebSocket {
     public void onOpen(Session session, @PathParam(value = "userId") String userId) {
         try {
             if (StringUtils.isBlank(userId) || "undefined".equals(userId)) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "参数有误");
+                sendError(userId, "参数有误");
+                return;
             }
             SESSIONS.add(session);
             SESSION_POOL.put(userId, session);
-            System.err.println(SESSION_POOL);
             log.info("有新用户加入，userId={}, 当前在线人数为：{}", userId, SESSION_POOL.size());
             sendAllUsers();
         } catch (Exception e) {
@@ -66,12 +73,20 @@ public class WebSocket {
         }
     }
 
+    private void sendError(String userId, String errorMessage) {
+        JSONObject obj = new JSONObject();
+        obj.set("error", errorMessage);
+        sendOneMessage(userId, obj.toString());
+    }
+
     @OnClose
-    public void onClose(@PathParam("userId") String userId) {
+    public void onClose(@PathParam("userId") String userId, Session session) {
         try {
             if (!SESSION_POOL.isEmpty()) {
                 SESSION_POOL.remove(userId);
-                log.info("【WebSocket消息】连接断开{}", userId);
+                SESSIONS.remove(session);
+                log.info("【WebSocket消息】连接断开 id为=={}", userId);
+                log.info("【WebSocket消息】 session 连接断开 ,id为== {}", session.getId());
             }
             log.info("【WebSocket消息】连接断开，总数为：" + SESSION_POOL.size());
             sendAllUsers();
@@ -90,25 +105,45 @@ public class WebSocket {
         MessageRequest messageRequest = new Gson().fromJson(message, MessageRequest.class);
         Long toId = messageRequest.getToId();
         String text = messageRequest.getText();
-
-        Session toSession = SESSION_POOL.get(toId.toString());
-        if (toSession != null) {
+        Integer chatType = messageRequest.getChatType();
+        if (chatType == 1) {
+            savaChat(userId, toId, text);
+            Session toSession = SESSION_POOL.get(toId.toString());
+            if (toSession != null) {
+                MessageVo messageVo = chatService.chatResult(Long.parseLong(userId), toId, text);
+                String toJson = new Gson().toJson(messageVo);
+                sendOneMessage(toId.toString(), toJson);
+                log.info("发送给用户username={}，消息：{}", messageVo.getToUser(), toJson);
+            } else {
+                // sendError(userId, "发送失败");
+                log.info("发送失败，未找到用户username={}的session", toId);
+            }
+        } else {
             MessageVo messageVo = new MessageVo();
             User fromUser = userService.getById(userId);
-            User toUser = userService.getById(toId);
             WebSocketVo fromWebSocketVo = new WebSocketVo();
-            WebSocketVo toWebSocketVo = new WebSocketVo();
             BeanUtils.copyProperties(fromUser, fromWebSocketVo);
-            BeanUtils.copyProperties(toUser, toWebSocketVo);
             messageVo.setFormUser(fromWebSocketVo);
-            messageVo.setToUser(toWebSocketVo);
             messageVo.setText(text);
             String toJson = new Gson().toJson(messageVo);
-            sendOneMessage(toId.toString(), toJson);
-            log.info("发送给用户username={}，消息：{}", messageVo.getToUser(), toJson);
-        } else {
-            log.info("发送失败，未找到用户username={}的session", toId);
+            sendAllMessage(toJson);
         }
+    }
+
+    private void savaChat(String userId, Long toId, String text) {
+        User user = userService.getById(userId);
+        Set<Long> userIds = stringJsonListToLongSet(user.getUserIds());
+        if (!userIds.contains(toId)) {
+            sendError(userId, "该用户不是你的好友");
+            return;
+        }
+        Chat chat = new Chat();
+        chat.setFromId(Long.parseLong(userId));
+        chat.setToId(toId);
+        chat.setText(text);
+        chat.setChatType(PRIVATE_CHAT);
+        chat.setCreateTime(new Date());
+        chatService.save(chat);
     }
 
     /**
@@ -118,7 +153,6 @@ public class WebSocket {
      */
     public void sendAllMessage(String message) {
         log.info("【WebSocket消息】广播消息：" + message);
-
         for (Session session : SESSIONS) {
             try {
                 if (session.isOpen()) {
