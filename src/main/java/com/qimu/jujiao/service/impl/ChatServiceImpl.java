@@ -48,7 +48,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         return list.stream().map(chat -> {
             MessageVo messageVo = chatResult(loginUser.getId(), toId, chat.getText());
             if (chat.getFromId().equals(loginUser.getId())) {
-                messageVo.setType(true);
+                messageVo.setIsMy(true);
             }
             return messageVo;
         }).collect(Collectors.toList());
@@ -93,7 +93,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         return chatList.stream().map(chat -> {
             MessageVo messageVo = chatResult(chat.getFromId(), chat.getText());
             if (chat.getFromId().equals(userId)) {
-                messageVo.setType(true);
+                messageVo.setIsMy(true);
             }
             return messageVo;
         }).collect(Collectors.toList());

@@ -17,5 +17,5 @@ public class MessageVo implements Serializable {
     private WebSocketVo toUser;
     private Long teamId;
     private String text;
-    private Boolean type = false;
+    private Boolean isMy = false;
 }
