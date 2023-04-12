@@ -13,7 +13,7 @@ spring:
     username: root
     password: 1234
   session:
-    timeout: 86400
+    timeout: 2592000
     store-type: redis
   redis:
     database: 1
@@ -25,13 +25,12 @@ spring:
     timeZone: Asia/Shanghai
 server:
   port: 8080
+  address: 0.0.0.0
   servlet:
     context-path: /api
-  reactive:
     session:
       cookie:
-        domain: qimuu.icu
-  address: 0.0.0.0
+        max-age: 2592000
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: false
@@ -41,13 +40,14 @@ mybatis-plus:
       logic-delete-field: isDelete
       logic-delete-value: 1
       logic-not-delete-value: 0
+
 #  腾讯云cos配置
-cos:
-  client:
-    accessKey: XXX
-    secretKey: xxx
-    region: xxx
-    bucket: xxx
+#cos:
+#  client:
+#    accessKey: XXX
+#    secretKey: xxx
+#    region: xxx
+#    bucket: xxx
 
 
 
