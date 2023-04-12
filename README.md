@@ -8,14 +8,45 @@
 
 **前端地址： https://github.com/qimu666/jujiao-garden-frontend**
 
- **后端地址： https://github.com/qimu666/jujiao-yuan-backend**
+**后端地址： https://github.com/qimu666/jujiao-yuan-backend**
 
 🙏🏻 **大家喜欢这个项目的话，感谢动手点点 star**
+
+## 界面展示
+
+### 用户登录/注册
+
+<img src="https://img.qimuu.icu/typory/%E7%99%BB%E5%BD%95%E6%B3%A8%E5%86%8C.png" alt="登录注册" style="zoom:50%;" />
+
+### 好友列表
+
+<img src="https://img.qimuu.icu/typory/%E5%A5%BD%E5%8F%8B%E5%88%97%E8%A1%A8.png" alt="好友列表" style="zoom:43%;" />
+
+### 聊天功能
+
+![聊天展示](https://img.qimuu.icu/typory/%E8%81%8A%E5%A4%A9%E5%B1%95%E7%A4%BA.png)
+
+### 用户推荐页
+
+<img src="https://img.qimuu.icu/typory/%E7%94%A8%E6%88%B7%E6%8E%A8%E8%8D%90.png" alt="用户推荐" style="zoom:50%;" />
+
+### 根据标签搜索用户
+
+<img src="https://img.qimuu.icu/typory/%E6%A0%87%E7%AD%BE%E6%90%9C%E7%B4%A2.png" alt="标签搜索" style="zoom:50%;" />
+
+### 队伍页
+
+<img src="https://img.qimuu.icu/typory/%E9%98%9F%E4%BC%8D%E9%A1%B5.png" alt="队伍页" style="zoom:50%;" />
+
+### 个人中心页
+
+<img src="https://img.qimuu.icu/typory/%E4%B8%AA%E4%BA%BA%E4%B8%AD%E5%BF%83%E9%A1%B5.png" alt="个人中心页" style="zoom: 50%;" />
+
+**详细界面见：** [聚交园](https://qimuu.icu/) 或doc目录
 
 ## 项目描述
 
 - 一个帮助大家找到志同道合的伙伴的移动端网站，主要有用户登录注册、更新个人信息、按标签搜索用户、组队、好友聊天、大厅聊天、队伍聊天等功能。
-
 
 ## 技术选型
 
@@ -27,11 +58,11 @@
 
 3. Vite 脚手架
 
-4. TypeScript 
+4. TypeScript
 
 5. Axios 请求库
 
- ### 后端
+### 后端
 
 1. Java SpringBoot 2.7.x 框架
 2. MySQL 数据库
