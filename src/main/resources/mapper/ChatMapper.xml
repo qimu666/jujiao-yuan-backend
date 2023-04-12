@@ -13,12 +13,11 @@
         <result property="chatType" column="chatType" jdbcType="TINYINT"/>
         <result property="createTime" column="createTime" jdbcType="TIMESTAMP"/>
         <result property="updateTime" column="updateTime" jdbcType="TIMESTAMP"/>
-        <result property="isDelete" column="isDelete" jdbcType="TINYINT"/>
     </resultMap>
 
     <sql id="Base_Column_List">
         id,fromId,toId,teamId,
         text,chatType,createTime,
-        updateTime,isDelete
+        updateTime
     </sql>
 </mapper>

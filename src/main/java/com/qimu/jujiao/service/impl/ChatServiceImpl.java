@@ -32,21 +32,21 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
     private UserService userService;
 
     @Override
-    public List<MessageVo> getPrivateChat(ChatRequest chatRequest, Integer chatType, User loginUser) {
-        Long fromId = chatRequest.getFromId();
+    public List<MessageVo> getPrivateChat(ChatRequest chatRequest, int chatType, User loginUser) {
         Long toId = chatRequest.getToId();
-        if (fromId == null || toId == null) {
+        if (toId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "状态异常请重试");
         }
         LambdaQueryWrapper<Chat> chatLambdaQueryWrapper = new LambdaQueryWrapper<>();
         chatLambdaQueryWrapper.
-                and(privateChat -> privateChat.eq(Chat::getFromId, fromId).eq(Chat::getToId, toId)
+                and(privateChat -> privateChat.eq(Chat::getFromId, loginUser.getId()).eq(Chat::getToId, toId)
                         .or().
-                        eq(Chat::getToId, fromId).eq(Chat::getFromId, toId)
+                        eq(Chat::getToId, loginUser.getId()).eq(Chat::getFromId, toId)
                 ).eq(Chat::getChatType, chatType);
+        // 两方共有聊天
         List<Chat> list = this.list(chatLambdaQueryWrapper);
         return list.stream().map(chat -> {
-            MessageVo messageVo = chatResult(fromId, toId, chat.getText());
+            MessageVo messageVo = chatResult(loginUser.getId(), toId, chat.getText());
             if (chat.getFromId().equals(loginUser.getId())) {
                 messageVo.setType(true);
             }
@@ -55,9 +55,16 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
     }
 
     @Override
-    public MessageVo chatResult(Long fromId, Long toId, String text) {
+    public List<MessageVo> getHallChat(int chatType, User loginUser) {
+        LambdaQueryWrapper<Chat> chatLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        chatLambdaQueryWrapper.eq(Chat::getChatType, chatType);
+        return returnMessage(loginUser.getId(), chatLambdaQueryWrapper);
+    }
+
+    @Override
+    public MessageVo chatResult(Long userId, Long toId, String text) {
         MessageVo messageVo = new MessageVo();
-        User fromUser = userService.getById(fromId);
+        User fromUser = userService.getById(userId);
         User toUser = userService.getById(toId);
         WebSocketVo fromWebSocketVo = new WebSocketVo();
         WebSocketVo toWebSocketVo = new WebSocketVo();
@@ -65,6 +72,46 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         BeanUtils.copyProperties(toUser, toWebSocketVo);
         messageVo.setFormUser(fromWebSocketVo);
         messageVo.setToUser(toWebSocketVo);
+        messageVo.setText(text);
+        return messageVo;
+    }
+
+    @Override
+    public List<MessageVo> getTeamChat(ChatRequest chatRequest, int chatType, User loginUser) {
+        Long teamId = chatRequest.getTeamId();
+        if (teamId == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求有误");
+        }
+        LambdaQueryWrapper<Chat> chatLambdaQueryWrapper = new LambdaQueryWrapper<>();
+        chatLambdaQueryWrapper.eq(Chat::getChatType, chatType).eq(Chat::getTeamId, teamId);
+        return returnMessage(loginUser.getId(), chatLambdaQueryWrapper);
+    }
+
+    @Override
+    public List<MessageVo> returnMessage(Long userId, LambdaQueryWrapper<Chat> chatLambdaQueryWrapper) {
+        List<Chat> chatList = this.list(chatLambdaQueryWrapper);
+        return chatList.stream().map(chat -> {
+            MessageVo messageVo = chatResult(chat.getFromId(), chat.getText());
+            if (chat.getFromId().equals(userId)) {
+                messageVo.setType(true);
+            }
+            return messageVo;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * Vo映射
+     *
+     * @param userId
+     * @param text
+     * @return
+     */
+    public MessageVo chatResult(Long userId, String text) {
+        MessageVo messageVo = new MessageVo();
+        User fromUser = userService.getById(userId);
+        WebSocketVo fromWebSocketVo = new WebSocketVo();
+        BeanUtils.copyProperties(fromUser, fromWebSocketVo);
+        messageVo.setFormUser(fromWebSocketVo);
         messageVo.setText(text);
         return messageVo;
     }

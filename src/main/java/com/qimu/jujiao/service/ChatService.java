@@ -1,5 +1,6 @@
 package com.qimu.jujiao.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.qimu.jujiao.model.entity.Chat;
 import com.qimu.jujiao.model.entity.User;
@@ -15,14 +16,23 @@ import java.util.List;
  */
 public interface ChatService extends IService<Chat> {
     /**
-     * 获取聊天内容
+     * 获取私聊聊天内容
      *
      * @param chatRequest
      * @param chatType
      * @param loginUser
      * @return
      */
-    List<MessageVo> getPrivateChat(ChatRequest chatRequest, Integer chatType, User loginUser);
+    List<MessageVo> getPrivateChat(ChatRequest chatRequest, int chatType, User loginUser);
+
+    /**
+     * 获取大厅聊天纪录
+     *
+     * @param chatType
+     * @param loginUser
+     * @return
+     */
+    List<MessageVo> getHallChat(int chatType, User loginUser);
 
     /**
      * 聊天记录映射
@@ -33,4 +43,23 @@ public interface ChatService extends IService<Chat> {
      * @return
      */
     MessageVo chatResult(Long fromId, Long toId, String text);
+
+    /**
+     * 队伍聊天室
+     *
+     * @param chatRequest
+     * @param chatType
+     * @param loginUser
+     * @return
+     */
+    List<MessageVo> getTeamChat(ChatRequest chatRequest, int chatType, User loginUser);
+
+    /**
+     * 消息处理
+     *
+     * @param userId
+     * @param chatLambdaQueryWrapper
+     * @return
+     */
+    List<MessageVo> returnMessage(Long userId, LambdaQueryWrapper<Chat> chatLambdaQueryWrapper);
 }

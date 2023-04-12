@@ -15,9 +15,9 @@ public class ChatRequest implements Serializable {
     private static final long serialVersionUID = 1445805872513828206L;
 
     /**
-     * 发送消息id
+     * 队伍聊天室id
      */
-    private Long fromId;
+    private Long teamId;
 
     /**
      * 接收消息id

@@ -6,6 +6,7 @@ import com.google.gson.Gson;
 import com.qimu.jujiao.model.entity.Team;
 import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.vo.TeamUserVo;
+import com.qimu.jujiao.service.ChatService;
 import com.qimu.jujiao.service.TeamService;
 import com.qimu.jujiao.service.UserService;
 import com.qimu.jujiao.utils.StringUtils;
@@ -39,6 +40,8 @@ public class CacheWarming {
     private UserService userService;
 
     @Resource
+    private ChatService chatService;
+    @Resource
     private TeamService teamService;
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
@@ -61,7 +64,7 @@ public class CacheWarming {
                     List<User> list = userService.list(userQueryWrapper);
                     List<User> result = list.stream().map(user -> userService.getSafetyUser(user)).collect(Collectors.toList());
                     try {
-                        redisTemplate.opsForValue().set(userService.redisFormat(mainUserId), result, 1 + RandomUtil.randomInt(1, 2)/10, TimeUnit.MINUTES);
+                        redisTemplate.opsForValue().set(userService.redisFormat(mainUserId), result, 1 + RandomUtil.randomInt(1, 2) / 10, TimeUnit.MINUTES);
                     } catch (Exception e) {
                         log.error("redis set key error", e);
                     }
@@ -133,6 +136,26 @@ public class CacheWarming {
             }
         } catch (InterruptedException e) {
             log.error("CacheWarming dissolutionExpiredTeam error ", e);
+        } finally {
+            if (rLock.isHeldByCurrentThread()) {
+                System.out.println("unLock: " + Thread.currentThread().getId());
+                rLock.unlock();
+            }
+        }
+    }
+
+    /**
+     * 每7天清空一次数据,即聊天记录只保存7天
+     */
+    @Scheduled(cron = "0 0 0 */7 * ?")
+    public void chatRecords() {
+        RLock rLock = redissonClient.getLock("jujiaoyuan:cache:chatRecords:lock");
+        try {
+            if (rLock.tryLock(0, -1, TimeUnit.MILLISECONDS)) {
+                boolean remove = chatService.remove(null);
+            }
+        } catch (InterruptedException e) {
+            log.error("CacheWarming chatRecords error ", e);
         } finally {
             if (rLock.isHeldByCurrentThread()) {
                 System.out.println("unLock: " + Thread.currentThread().getId());

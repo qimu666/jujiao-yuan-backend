@@ -74,7 +74,6 @@ create table chat
     chatType   tinyint                            not null comment '聊天类型 1-私聊 2-群聊',
     createTime datetime default CURRENT_TIMESTAMP null comment '创建时间',
     updateTime datetime default CURRENT_TIMESTAMP null,
-    isDelete   tinyint  default 0                 not null comment '是否删除',
     teamId     bigint                             null
 )
     comment '聊天消息表';

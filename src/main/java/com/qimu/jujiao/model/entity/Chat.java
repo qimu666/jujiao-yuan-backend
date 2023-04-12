@@ -52,8 +52,4 @@ public class Chat implements Serializable {
      *
      */
     private Date updateTime;
-    /**
-     * 是否删除
-     */
-    private Integer isDelete;
 }

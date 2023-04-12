@@ -12,7 +12,11 @@ public interface ChatConstant {
      */
     int PRIVATE_CHAT = 1;
     /**
-     * 群聊
+     * 队伍群聊
      */
-    int PUBLIC_CHAT = 2;
+    int TEAM_CHAT = 2;
+    /**
+     * 大厅聊天
+     */
+    int HALL_CHAT = 3;
 }
