@@ -42,7 +42,7 @@ public interface ChatService extends IService<Chat> {
      * @param text
      * @return
      */
-    MessageVo chatResult(Long fromId, Long toId, String text);
+    MessageVo chatResult(Long fromId, Long toId, String text, Integer chatType);
 
     /**
      * 队伍聊天室

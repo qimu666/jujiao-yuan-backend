@@ -4,7 +4,7 @@
 
 [TOC]
 
-**本站地址：[qimuu.icu]([聚交园 (qimuu.icu)](https://qimuu.icu/))**
+**本站地址：[聚交园](https://qimuu.icu/)**
 
 **前端地址： https://github.com/qimu666/jujiao-garden-frontend**
 

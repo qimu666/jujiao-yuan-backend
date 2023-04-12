@@ -46,7 +46,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         // 两方共有聊天
         List<Chat> list = this.list(chatLambdaQueryWrapper);
         return list.stream().map(chat -> {
-            MessageVo messageVo = chatResult(loginUser.getId(), toId, chat.getText());
+            MessageVo messageVo = chatResult(loginUser.getId(), toId, chat.getText(), chatType);
             if (chat.getFromId().equals(loginUser.getId())) {
                 messageVo.setIsMy(true);
             }
@@ -62,7 +62,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
     }
 
     @Override
-    public MessageVo chatResult(Long userId, Long toId, String text) {
+    public MessageVo chatResult(Long userId, Long toId, String text, Integer chatType) {
         MessageVo messageVo = new MessageVo();
         User fromUser = userService.getById(userId);
         User toUser = userService.getById(toId);
@@ -72,6 +72,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         BeanUtils.copyProperties(toUser, toWebSocketVo);
         messageVo.setFormUser(fromWebSocketVo);
         messageVo.setToUser(toWebSocketVo);
+        messageVo.setChatType(chatType);
         messageVo.setText(text);
         return messageVo;
     }

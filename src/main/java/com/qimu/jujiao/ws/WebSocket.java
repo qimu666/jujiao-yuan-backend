@@ -208,6 +208,7 @@ public class WebSocket {
         BeanUtils.copyProperties(fromUser, fromWebSocketVo);
         messageVo.setFormUser(fromWebSocketVo);
         messageVo.setText(text);
+        messageVo.setChatType(chatType);
         String toJson = new Gson().toJson(messageVo);
         sendAllMessage(toJson);
     }
@@ -222,7 +223,7 @@ public class WebSocket {
         savaChat(userId, toId, text, null, chatType);
         Session toSession = SESSION_POOL.get(toId.toString());
         if (toSession != null) {
-            MessageVo messageVo = chatService.chatResult(Long.parseLong(userId), toId, text);
+            MessageVo messageVo = chatService.chatResult(Long.parseLong(userId), toId, text, chatType);
             String toJson = new Gson().toJson(messageVo);
             sendOneMessage(toId.toString(), toJson);
             log.info("发送给用户username={}，消息：{}", messageVo.getToUser(), toJson);

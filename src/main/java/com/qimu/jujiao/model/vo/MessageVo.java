@@ -18,4 +18,5 @@ public class MessageVo implements Serializable {
     private Long teamId;
     private String text;
     private Boolean isMy = false;
+    private Integer chatType;
 }
