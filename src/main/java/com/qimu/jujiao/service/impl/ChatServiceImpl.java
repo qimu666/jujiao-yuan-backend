@@ -7,11 +7,13 @@ import com.qimu.jujiao.common.ErrorCode;
 import com.qimu.jujiao.exception.BusinessException;
 import com.qimu.jujiao.mapper.ChatMapper;
 import com.qimu.jujiao.model.entity.Chat;
+import com.qimu.jujiao.model.entity.Team;
 import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.request.ChatRequest;
 import com.qimu.jujiao.model.vo.MessageVo;
 import com.qimu.jujiao.model.vo.WebSocketVo;
 import com.qimu.jujiao.service.ChatService;
+import com.qimu.jujiao.service.TeamService;
 import com.qimu.jujiao.service.UserService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,8 @@ import org.springframework.stereotype.Service;
 import javax.annotation.Resource;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import static com.qimu.jujiao.contant.UserConstant.ADMIN_ROLE;
 
 /**
  * @author qimu
@@ -30,6 +34,9 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         implements ChatService {
     @Resource
     private UserService userService;
+
+    @Resource
+    private TeamService teamService;
 
     @Override
     public List<MessageVo> getPrivateChat(ChatRequest chatRequest, int chatType, User loginUser) {
@@ -58,7 +65,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
     public List<MessageVo> getHallChat(int chatType, User loginUser) {
         LambdaQueryWrapper<Chat> chatLambdaQueryWrapper = new LambdaQueryWrapper<>();
         chatLambdaQueryWrapper.eq(Chat::getChatType, chatType);
-        return returnMessage(loginUser.getId(), chatLambdaQueryWrapper);
+        return returnMessage(loginUser, null, chatLambdaQueryWrapper);
     }
 
     @Override
@@ -83,17 +90,21 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         if (teamId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求有误");
         }
+        Team team = teamService.getById(teamId);
         LambdaQueryWrapper<Chat> chatLambdaQueryWrapper = new LambdaQueryWrapper<>();
         chatLambdaQueryWrapper.eq(Chat::getChatType, chatType).eq(Chat::getTeamId, teamId);
-        return returnMessage(loginUser.getId(), chatLambdaQueryWrapper);
+        return returnMessage(loginUser, team.getUserId(), chatLambdaQueryWrapper);
     }
 
-    @Override
-    public List<MessageVo> returnMessage(Long userId, LambdaQueryWrapper<Chat> chatLambdaQueryWrapper) {
+    private List<MessageVo> returnMessage(User loginUser, Long userId, LambdaQueryWrapper<Chat> chatLambdaQueryWrapper) {
         List<Chat> chatList = this.list(chatLambdaQueryWrapper);
         return chatList.stream().map(chat -> {
             MessageVo messageVo = chatResult(chat.getFromId(), chat.getText());
-            if (chat.getFromId().equals(userId)) {
+            boolean isCaptain = userId != null && userId.equals(chat.getFromId());
+            if (chat.getFromId() == ADMIN_ROLE || isCaptain) {
+                messageVo.setIsAdmin(true);
+            }
+            if (chat.getFromId().equals(loginUser.getId())) {
                 messageVo.setIsMy(true);
             }
             return messageVo;

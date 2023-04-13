@@ -1,6 +1,5 @@
 package com.qimu.jujiao.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.qimu.jujiao.model.entity.Chat;
 import com.qimu.jujiao.model.entity.User;
@@ -54,12 +53,4 @@ public interface ChatService extends IService<Chat> {
      */
     List<MessageVo> getTeamChat(ChatRequest chatRequest, int chatType, User loginUser);
 
-    /**
-     * 消息处理
-     *
-     * @param userId
-     * @param chatLambdaQueryWrapper
-     * @return
-     */
-    List<MessageVo> returnMessage(Long userId, LambdaQueryWrapper<Chat> chatLambdaQueryWrapper);
 }

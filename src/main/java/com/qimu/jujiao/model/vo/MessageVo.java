@@ -19,4 +19,5 @@ public class MessageVo implements Serializable {
     private String text;
     private Boolean isMy = false;
     private Integer chatType;
+    private Boolean isAdmin = false;
 }

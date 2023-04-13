@@ -17,4 +17,5 @@ public class MessageRequest implements Serializable {
     private Long teamId;
     private String text;
     private Integer chatType;
+    private boolean isAdmin;
 }
