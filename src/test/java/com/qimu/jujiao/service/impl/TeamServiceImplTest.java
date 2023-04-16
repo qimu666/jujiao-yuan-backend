@@ -6,7 +6,6 @@ import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.service.TeamService;
 import com.qimu.jujiao.service.UserService;
 import com.qimu.jujiao.utils.StringUtils;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 

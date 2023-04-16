@@ -15,7 +15,6 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
  * <a href="https://doc.xiaominfo.com/knife4j/documentation/get_start.html">...</a>
  *
  * @author qimu
- *
  */
 @Configuration
 @EnableSwagger2

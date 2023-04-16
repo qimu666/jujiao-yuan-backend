@@ -12,7 +12,7 @@ import java.util.Date;
 /**
  * 聊天消息表
  *
- * @TableName chat
+ * @author qimu
  */
 @TableName(value = "chat")
 @Data

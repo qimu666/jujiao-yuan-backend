@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -85,16 +86,19 @@ public class UserController {
         if (loginUser != null) {
             List<User> userList = (List<User>) valueOperations.get(userService.redisFormat(loginUser.getId()));
             if (userList != null) {
-                return ResultUtil.success(userList);
+                // 打乱并固定第一个用户
+                return ResultUtil.success(fixTheFirstUser(userList));
             }
         } else {
             List<User> userList = (List<User>) valueOperations.get("jujiaoyuan:user:notLogin");
             if (userList != null) {
-                return ResultUtil.success(userList);
+                // 打乱并固定第一个用户
+                return ResultUtil.success(fixTheFirstUser(userList));
             }
         }
-        List<User> list = userService.list();
-        List<User> result = list.stream().map(user -> userService.getSafetyUser(user)).collect(Collectors.toList());
+        List<User> userList = userService.list();
+        // 打乱并固定第一个用户
+        List<User> result = fixTheFirstUser(userList).stream().map(user -> userService.getSafetyUser(user)).collect(Collectors.toList());
         try {
             if (loginUser != null) {
                 redisTemplate.opsForValue().set(userService.redisFormat(loginUser.getId()), result, 1 + RandomUtil.randomInt(1, 2) / 10, TimeUnit.MINUTES);
@@ -105,6 +109,16 @@ public class UserController {
             log.error("redis set key error", e);
         }
         return ResultUtil.success(result);
+    }
+
+    private List<User> fixTheFirstUser(List<User> userList) {
+        // 取出第一个元素
+        User firstUser = userList.get(0);
+        // 将剩下的元素打乱顺序
+        userList = userList.subList(1, userList.size());
+        Collections.shuffle(userList);
+        userList.add(0, firstUser);
+        return userList;
     }
 
     @PostMapping("/search")

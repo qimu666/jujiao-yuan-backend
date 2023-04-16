@@ -208,10 +208,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public List<User> searchFriend(UserQueryRequest userQueryRequest, User currentUser) {
         String searchText = userQueryRequest.getSearchText();
-
         User user = this.getById(currentUser.getId());
         Set<Long> friendsId = stringJsonListToLongSet(user.getUserIds());
         List<User> users = new ArrayList<>();
+        Collections.shuffle(users);
         friendsId.forEach(id -> {
             User u = this.getById(id);
             if (u.getUsername().contains(searchText)) {

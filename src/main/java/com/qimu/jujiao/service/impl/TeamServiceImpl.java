@@ -44,15 +44,14 @@ import static com.qimu.jujiao.utils.StringUtils.stringJsonListToLongSet;
 @Slf4j
 public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements TeamService {
     private static final String SALT = "qimu_team";
+    private static final String BY_TEAM_IDS = String.format("jujiaoyuan:team:getTeamListByTeamIds:%s", "byTeamIds");
+    private static final String TEAMS_KEY = String.format("jujiaoyuan:team:getTeams:%s", "getTeams");
     @Resource
     private RedissonClient redissonClient;
     @Resource
     private UserService userService;
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
-
-    private static final String BY_TEAM_IDS = String.format("jujiaoyuan:team:getTeamListByTeamIds:%s", "byTeamIds");
-    private static final String TEAMS_KEY = String.format("jujiaoyuan:team:getTeams:%s", "getTeams");
 
     @Override
     public TeamUserVo getTeamListByTeamIds(Set<Long> teamId, HttpServletRequest request) {
@@ -202,16 +201,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍公告超过50个字符");
         }
         // 过期时间在当前日期之前
-        if (new Date().after(teamCreateRequest.getExpireTime())) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "过期时间不能在当前时间之前");
-        }
-        if (teamCreateRequest.getMaxNum() == null || teamCreateRequest.getMaxNum() > 10) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍最多只能容纳10人");
-        }
-        if (teamCreateRequest.getMaxNum() < 5) {
-            teamCreateRequest.setMaxNum(5);
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍最少要有5人");
-        }
+        checkTeam(teamCreateRequest);
         int status = Optional.ofNullable(teamCreateRequest.getTeamStatus()).orElse(0);
         Team team = new Team();
         // 只有队伍状态为加密才需要设置密码
@@ -219,15 +209,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
             if (StringUtils.isBlank(teamCreateRequest.getTeamPassword())) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "加密状态,必须设置密码");
             }
-            if (teamCreateRequest.getTeamPassword().length() < 6) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍密码长度低于6位");
-            }
-            if (teamCreateRequest.getTeamPassword().length() > 16) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码最长只能设置16位");
-            }
-            // 加密
-            String encryptPassword = DigestUtils.md5DigestAsHex((SALT + teamCreateRequest.getTeamPassword()).getBytes(StandardCharsets.UTF_8));
-            team.setTeamPassword(encryptPassword);
+            // 加密队伍校验
+            encryptTeamCheck(teamCreateRequest.getTeamPassword(), team);
         }
         long id = loginUser.getId();
         User user = userService.getById(id);
@@ -291,6 +274,42 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         }
     }
 
+    /**
+     * 加密队伍校验
+     *
+     * @param teamCreateRequest
+     * @param team
+     */
+    private void encryptTeamCheck(String teamCreateRequest, Team team) {
+        if (teamCreateRequest.length() < 6) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍密码长度低于6位");
+        }
+        if (teamCreateRequest.length() > 16) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码最长只能设置16位");
+        }
+        // 加密
+        String encryptPassword = DigestUtils.md5DigestAsHex((SALT + teamCreateRequest).getBytes(StandardCharsets.UTF_8));
+        team.setTeamPassword(encryptPassword);
+    }
+
+    /**
+     * 校验队伍
+     *
+     * @param teamCreateRequest
+     */
+    private void checkTeam(TeamCreateRequest teamCreateRequest) {
+        if (new Date().after(teamCreateRequest.getExpireTime())) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "过期时间不能在当前时间之前");
+        }
+        if (teamCreateRequest.getMaxNum() == null || teamCreateRequest.getMaxNum() > 10) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍最多只能容纳10人");
+        }
+        if (teamCreateRequest.getMaxNum() < 5) {
+            teamCreateRequest.setMaxNum(5);
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍最少要有5人");
+        }
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Boolean updateTeam(TeamUpdateRequest teamUpdateRequest, User loginUser) {
@@ -335,14 +354,8 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         int status = Optional.ofNullable(teamUpdateRequest.getTeamStatus()).orElse(0);
         if (status == ENCRYPTION_TEAM_STATUS) {
             if (!StringUtils.isBlank(teamUpdateRequest.getTeamPassword())) {
-                if (teamUpdateRequest.getTeamPassword().length() < 6) {
-                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "队伍密码长度低于6位");
-                }
-                if (teamUpdateRequest.getTeamPassword().length() > 16) {
-                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "密码最长只能设置16位");
-                }
-                String encryptPassword = DigestUtils.md5DigestAsHex((SALT + teamUpdateRequest.getTeamPassword()).getBytes(StandardCharsets.UTF_8));
-                oldTeam.setTeamPassword(encryptPassword);
+                // 加密队伍校验
+                encryptTeamCheck(teamUpdateRequest.getTeamPassword(), oldTeam);
             }
             if (StringUtils.isBlank(oldTeam.getTeamPassword())) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "加密状态,必须设置密码");
@@ -411,7 +424,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         LambdaQueryWrapper<User> userLambdaQueryWrapper = new LambdaQueryWrapper<>();
         userLambdaQueryWrapper.eq(User::getUserAccount, transferTeamRequest.getUserAccount());
         User user = userService.getOne(userLambdaQueryWrapper);
-        if (user==null){
+        if (user == null) {
             throw new BusinessException(ErrorCode.NULL_ERROR, "该用户不存在");
         }
         Set<Long> userIds = stringJsonListToLongSet(team.getUsersId());
@@ -501,6 +514,10 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
         TeamUserVo teamList = (TeamUserVo) valueOperations.get(TEAMS_KEY);
         if (teamList != null) {
+            List<TeamVo> lists = new ArrayList<>(teamList.getTeamSet());
+            Collections.shuffle(lists);
+            HashSet<TeamVo> teamVos = new HashSet<>(lists);
+            teamList.setTeamSet(teamVos);
             return teamList;
         }
         List<Team> teams = this.list();
@@ -603,6 +620,7 @@ public class TeamServiceImpl extends ServiceImpl<TeamMapper, Team> implements Te
         List<Team> listTeam = teamList.stream()
                 .filter(team -> !new Date().after(team.getExpireTime()))
                 .collect(Collectors.toList());
+        Collections.shuffle(listTeam);
         TeamUserVo teamUserVo = new TeamUserVo();
         Set<TeamVo> users = new HashSet<>();
         listTeam.forEach(team -> {

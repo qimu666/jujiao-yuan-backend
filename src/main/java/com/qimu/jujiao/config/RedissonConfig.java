@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Redisson 配置
+ *
  * @author qimu
  */
 @Configuration

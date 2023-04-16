@@ -72,6 +72,7 @@ public interface TeamService extends IService<Team> {
 
     /**
      * 退出队伍
+     *
      * @param teamId
      * @param request
      * @return
@@ -80,6 +81,7 @@ public interface TeamService extends IService<Team> {
 
     /**
      * 查询队伍
+     *
      * @param teamQueryRequest
      * @param request
      * @return
@@ -96,6 +98,7 @@ public interface TeamService extends IService<Team> {
 
     /**
      * 修改队伍信息
+     *
      * @param teamUpdateRequest
      * @param loginUser
      * @return
@@ -104,7 +107,8 @@ public interface TeamService extends IService<Team> {
 
     /**
      * 踢出队员
-     * @param userId 队员id
+     *
+     * @param userId    队员id
      * @param loginUser
      * @return
      */
@@ -112,6 +116,7 @@ public interface TeamService extends IService<Team> {
 
     /**
      * 转交队长
+     *
      * @param transferTeamRequest
      * @param loginUser
      * @return

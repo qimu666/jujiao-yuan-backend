@@ -43,33 +43,29 @@ import static com.qimu.jujiao.utils.StringUtils.stringJsonListToLongSet;
 @ServerEndpoint("/websocket/{userId}/{teamId}")
 public class WebSocket {
 
-    private static UserService userService;
-    private static ChatService chatService;
     /**
      * 保存队伍的连接信息
      */
     private static final Map<String, ConcurrentHashMap<String, WebSocket>> ROOMS = new HashMap<>();
-    private static TeamService teamService;
-
-    @Resource
-    public void setHeatMapService(UserService userService) {
-        WebSocket.userService = userService;
-    }
-
-    @Resource
-    public void setHeatMapService(ChatService chatService) {
-        WebSocket.chatService = chatService;
-    }
-
-    /**
-     * 房间在线人数
-     */
-    private static int onlineCount = 0;
-
     /**
      * 线程安全的无序的集合
      */
     private static final CopyOnWriteArraySet<Session> SESSIONS = new CopyOnWriteArraySet<>();
+    /**
+     * 存储在线连接数
+     */
+    private static final Map<String, Session> SESSION_POOL = new HashMap<>(0);
+    private static UserService userService;
+    private static ChatService chatService;
+    private static TeamService teamService;
+    /**
+     * 房间在线人数
+     */
+    private static int onlineCount = 0;
+    /**
+     * 当前信息
+     */
+    private Session session;
 
     /**
      * 队伍内群发消息
@@ -91,12 +87,6 @@ public class WebSocket {
         }
     }
 
-    /**
-     * 存储在线连接数
-     */
-    private static final Map<String, Session> SESSION_POOL = new HashMap<>(0);
-    private Session session;
-
     public static synchronized int getOnlineCount() {
         return onlineCount;
     }
@@ -107,6 +97,16 @@ public class WebSocket {
 
     public static synchronized void subOnlineCount() {
         WebSocket.onlineCount--;
+    }
+
+    @Resource
+    public void setHeatMapService(UserService userService) {
+        WebSocket.userService = userService;
+    }
+
+    @Resource
+    public void setHeatMapService(ChatService chatService) {
+        WebSocket.chatService = chatService;
     }
 
     @Resource
@@ -134,7 +134,7 @@ public class WebSocket {
             this.session = session;
             if (!"NaN".equals(teamId)) {
                 if (!ROOMS.containsKey(teamId)) {
-                    ConcurrentHashMap<String, WebSocket> room = new ConcurrentHashMap<>();
+                    ConcurrentHashMap<String, WebSocket> room = new ConcurrentHashMap<>(0);
                     room.put(userId, this);
                     ROOMS.put(String.valueOf(teamId), room);
                     // 在线数加1
@@ -294,7 +294,7 @@ public class WebSocket {
      */
     public void sendAllUsers() {
         log.info("【WebSocket消息】发送所有在线用户信息");
-        HashMap<String, List<WebSocketVo>> stringListHashMap = new HashMap<>();
+        HashMap<String, List<WebSocketVo>> stringListHashMap = new HashMap<>(0);
         List<WebSocketVo> webSocketVos = new ArrayList<>();
         stringListHashMap.put("users", webSocketVos);
         for (Serializable key : SESSION_POOL.keySet()) {

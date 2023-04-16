@@ -39,6 +39,7 @@ public interface ChatService extends IService<Chat> {
      * @param fromId
      * @param toId
      * @param text
+     * @param chatType
      * @return
      */
     MessageVo chatResult(Long fromId, Long toId, String text, Integer chatType);

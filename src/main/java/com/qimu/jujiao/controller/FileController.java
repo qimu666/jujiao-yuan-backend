@@ -27,18 +27,19 @@ import java.util.Arrays;
 
 /**
  * 文件接口
+ *
+ * @author qimu
  */
 @RestController
 @RequestMapping("/file")
 @Slf4j
 public class FileController {
 
+    final long ONE_M = 1024 * 1024L;
     @Resource
     private UserService userService;
-
     @Resource
     private CosManager cosManager;
-
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
 
@@ -96,7 +97,6 @@ public class FileController {
         long fileSize = multipartFile.getSize();
         // 文件后缀
         String fileSuffix = FileUtil.getSuffix(multipartFile.getOriginalFilename());
-        final long ONE_M = 1024 * 1024L;
         if (FileUploadBizEnum.USER_AVATAR.equals(fileUploadBizEnum)) {
             if (fileSize > ONE_M) {
                 throw new BusinessException(ErrorCode.PARAMS_ERROR, "文件大小不能超过 1M");
