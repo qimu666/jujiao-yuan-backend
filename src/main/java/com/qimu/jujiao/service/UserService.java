@@ -139,23 +139,6 @@ public interface UserService extends IService<User> {
     List<User> userQuery(UserQueryRequest userQueryRequest, HttpServletRequest request);
 
     /**
-     * 根据id获取好友列表
-     *
-     * @param currentUser
-     * @return
-     */
-    List<User> getFriendsById(User currentUser);
-
-    /**
-     * 添加好友
-     *
-     * @param currentUser
-     * @param id
-     * @return
-     */
-    boolean addUser(User currentUser, Long id);
-
-    /**
      * 删除好友
      *
      * @param currentUser
@@ -165,11 +148,10 @@ public interface UserService extends IService<User> {
     boolean deleteFriend(User currentUser, Long id);
 
     /**
-     * 搜索好友
+     * 根据id获取好友列表
      *
-     * @param userQueryRequest
      * @param currentUser
      * @return
      */
-    List<User> searchFriend(UserQueryRequest userQueryRequest, User currentUser);
+    List<User> getFriendsById(User currentUser);
 }

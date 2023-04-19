@@ -1,12 +1,16 @@
 package com.qimu.jujiao.job;
 
+import cn.hutool.core.date.DateUnit;
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.google.gson.Gson;
+import com.qimu.jujiao.model.entity.Friends;
 import com.qimu.jujiao.model.entity.Team;
 import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.vo.TeamUserVo;
 import com.qimu.jujiao.service.ChatService;
+import com.qimu.jujiao.service.FriendsService;
 import com.qimu.jujiao.service.TeamService;
 import com.qimu.jujiao.service.UserService;
 import com.qimu.jujiao.utils.StringUtils;
@@ -26,6 +30,9 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.qimu.jujiao.contant.FriendConstant.AGREE_STATUS;
+import static com.qimu.jujiao.contant.FriendConstant.EXPIRED_STATUS;
+
 
 /**
  * @Author: QiMu
@@ -43,6 +50,8 @@ public class CacheWarming {
     private ChatService chatService;
     @Resource
     private TeamService teamService;
+    @Resource
+    private FriendsService friendsService;
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
 
@@ -147,7 +156,7 @@ public class CacheWarming {
     /**
      * 每7天清空一次数据,即聊天记录只保存7天
      */
-    @Scheduled(cron = "0 0 0 */7 * ?")
+    // @Scheduled(cron = "0 0 0 */7 * ?")
     public void chatRecords() {
         RLock rLock = redissonClient.getLock("jujiaoyuan:cache:chatRecords:lock");
         try {
@@ -156,6 +165,34 @@ public class CacheWarming {
             }
         } catch (InterruptedException e) {
             log.error("CacheWarming chatRecords error ", e);
+        } finally {
+            if (rLock.isHeldByCurrentThread()) {
+                System.out.println("unLock: " + Thread.currentThread().getId());
+                rLock.unlock();
+            }
+        }
+    }
+
+    /**
+     * 每30分钟校验有没有过期
+     */
+    @Scheduled(cron = "* 30 * * * ?")
+    public void isExpires() {
+        RLock rLock = redissonClient.getLock("jujiaoyuan:cache:isExpires:lock");
+        try {
+            if (rLock.tryLock(0, -1, TimeUnit.MILLISECONDS)) {
+                List<Friends> friendsList = friendsService.list();
+                friendsList.forEach(friends -> {
+                    if (DateUtil.between(new Date(), friends.getCreateTime(), DateUnit.DAY) >= 3) {
+                        if (friends.getStatus() != EXPIRED_STATUS && friends.getStatus() != AGREE_STATUS) {
+                            friends.setStatus(2);
+                            friendsService.updateById(friends);
+                        }
+                    }
+                });
+            }
+        } catch (InterruptedException e) {
+            log.error("CacheWarming isExpires error ", e);
         } finally {
             if (rLock.isHeldByCurrentThread()) {
                 System.out.println("unLock: " + Thread.currentThread().getId());

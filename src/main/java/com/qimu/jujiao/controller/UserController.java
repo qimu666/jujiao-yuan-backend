@@ -212,16 +212,6 @@ public class UserController {
         return ResultUtil.success(getUser);
     }
 
-    @PostMapping("/addUser/{id}")
-    public BaseResponse<Boolean> addUser(@PathVariable("id") Long id, HttpServletRequest request) {
-        if (id == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在");
-        }
-        User currentUser = userService.getLoginUser(request);
-        boolean addUser = userService.addUser(currentUser, id);
-        return ResultUtil.success(addUser);
-    }
-
     @PostMapping("/deleteFriend/{id}")
     public BaseResponse<Boolean> deleteFriend(@PathVariable("id") Long id, HttpServletRequest request) {
         if (id == null) {
@@ -231,15 +221,4 @@ public class UserController {
         boolean deleteFriend = userService.deleteFriend(currentUser, id);
         return ResultUtil.success(deleteFriend);
     }
-
-    @PostMapping("/searchFriend")
-    public BaseResponse<List<User>> searchFriend(@RequestBody UserQueryRequest userQueryRequest, HttpServletRequest request) {
-        if (userQueryRequest == null) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在");
-        }
-        User currentUser = userService.getLoginUser(request);
-        List<User> searchFriend = userService.searchFriend(userQueryRequest, currentUser);
-        return ResultUtil.success(searchFriend);
-    }
-
 }
