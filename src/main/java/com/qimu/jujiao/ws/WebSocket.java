@@ -364,7 +364,7 @@ public class WebSocket {
         }
         Chat chat = new Chat();
         chat.setFromId(userId);
-        chat.setText(text);
+        chat.setText(String.valueOf(text));
         chat.setChatType(chatType);
         chat.setCreateTime(new Date());
         if (toId != null && toId > 0) {

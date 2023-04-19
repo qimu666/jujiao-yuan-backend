@@ -1,5 +1,6 @@
-create schema jujiao_yuan collate utf8_unicode_ci;
+create schema jujiao_yuan collate utf8mb4_general_ci;
 
+-- auto-generated definition
 create table team
 (
     id            bigint auto_increment comment 'id'
@@ -16,9 +17,11 @@ create table team
     teamStatus    int      default 0                 not null comment '0 - 公开，1 - 私有，2 - 加密',
     isDelete      tinyint  default 0                 not null comment '是否删除',
     announce      varchar(512)                       null comment '队伍公告',
-    updateTime    datetime default CURRENT_TIMESTAMP null
+    updateTime    datetime default CURRENT_TIMESTAMP null,
+    teamId        bigint                             null comment '队伍聊天室(队伍id)'
 )
-    comment '队伍';
+    comment '队伍' charset = utf8;
+
 
 
 INSERT INTO jujiao_yuan.team (id, teamName, teamAvatarUrl, teamPassword, teamDesc, maxNum, expireTime, userId, usersId,
@@ -33,6 +36,7 @@ VALUES (100002, '公开测试队', 'https://img.qimuu.icu/typory/22.jfif', '6c7b
         '2023-03-23 18:56:23');
 
 
+-- auto-generated definition
 create table user
 (
     id            bigint auto_increment comment '用户id'
@@ -54,7 +58,9 @@ create table user
     isDelete      tinyint  default 0                 not null comment '是否删除',
     email         varchar(128)                       null comment '邮箱'
 )
-    comment '用户表';
+    comment '用户表' charset = utf8;
+
+
 
 INSERT INTO jujiao_yuan.user (id, username, userAccount, userAvatarUrl, gender, userPassword, contactInfo, userDesc,
                               userStatus, userRole, tags, teamIds, userIds, createTime, updateTime, isDelete, email)
@@ -63,36 +69,6 @@ VALUES (10001, '柒木', 'qimu', 'https://img.qimuu.icu/user_avatar/1/pR5dHavR-�
         '["C#","Java","C++","找伙伴","女","求职中","男","运动","Python","音乐","上班族"]', '[100002,100001]', '[2,3,4]',
         '2023-03-08 23:46:31', '2023-03-11 00:42:35', 0, '2483482026@qq.com');
 
--- auto-generated definition
-create table chat
-(
-    id         bigint auto_increment comment '聊天记录id'
-        primary key,
-    fromId     bigint                             not null comment '发送消息id',
-    toId       bigint                             null comment '接收消息id',
-    text       varchar(512)                       not null comment '聊天内容',
-    chatType   tinyint                            not null comment '聊天类型 1-私聊 2-群聊',
-    createTime datetime default CURRENT_TIMESTAMP null comment '创建时间',
-    updateTime datetime default CURRENT_TIMESTAMP null,
-    teamId     bigint                             null
-)
-    comment '聊天消息表';
-
-
--- auto-generated definition
-create table friends
-(
-    id         bigint auto_increment comment '好友申请id'
-        primary key,
-    fromId     bigint                             not null comment '发送申请的用户id',
-    receiveId  bigint                             null comment '接收申请的用户id ',
-    status     tinyint  default 0                 not null comment '申请状态 默认0 （0-未通过 1-已同意 2-已过期）',
-    createTime datetime default CURRENT_TIMESTAMP null comment '创建时间',
-    updateTime datetime default CURRENT_TIMESTAMP null,
-    isDelete   tinyint  default 0                 not null comment '是否删除',
-    remark     varchar(214)                       null comment '好友申请备注信息'
-)
-    comment '好友申请管理表';
 
 -- auto-generated definition
 create table friends
@@ -108,6 +84,28 @@ create table friends
     isDelete   tinyint  default 0                 not null comment '是否删除',
     remark     varchar(214)                       null comment '好友申请备注信息'
 )
-    comment '好友申请管理表';
+    comment '好友申请管理表' charset = utf8;
 
 
+-- auto-generated definition
+create table chat
+(
+    id         bigint auto_increment comment '聊天记录id'
+        primary key,
+    fromId     bigint                             not null comment '发送消息id',
+    toId       bigint                             null comment '接收消息id',
+    text       varchar(512) charset utf8          not null comment '聊天内容',
+    chatType   tinyint                            not null comment '聊天类型 1-私聊 2-群聊',
+    createTime datetime default CURRENT_TIMESTAMP null comment '创建时间',
+    updateTime datetime default CURRENT_TIMESTAMP null,
+    teamId     bigint                             null
+)
+    comment '聊天消息表' charset = utf8mb4;;
+
+
+SET NAMES utf8mb4;
+
+ALTER TABLE chat
+    CHARSET = utf8mb4;
+
+ALTER DATABASE jujiao_yuan CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
