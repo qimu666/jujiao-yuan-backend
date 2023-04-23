@@ -6,6 +6,7 @@ import com.qimu.jujiao.model.entity.User;
 import com.qimu.jujiao.model.request.ChatRequest;
 import com.qimu.jujiao.model.vo.MessageVo;
 
+import java.util.Date;
 import java.util.List;
 
 /**
@@ -40,9 +41,10 @@ public interface ChatService extends IService<Chat> {
      * @param toId
      * @param text
      * @param chatType
+     * @param createTime
      * @return
      */
-    MessageVo chatResult(Long fromId, Long toId, String text, Integer chatType);
+    MessageVo chatResult(Long fromId, Long toId, String text, Integer chatType, Date createTime);
 
     /**
      * 队伍聊天室

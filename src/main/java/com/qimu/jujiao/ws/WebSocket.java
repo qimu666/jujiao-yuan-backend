@@ -1,5 +1,6 @@
 package com.qimu.jujiao.ws;
 
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.google.gson.Gson;
@@ -225,6 +226,7 @@ public class WebSocket {
         messageVo.setText(text);
         messageVo.setTeamId(team.getId());
         messageVo.setChatType(chatType);
+        messageVo.setCreateTime(DateUtil.format(new Date(), "yyyy年MM月dd日 HH:mm:ss"));
         if (user.getId() == team.getUserId() || user.getUserRole() == ADMIN_ROLE) {
             messageVo.setIsAdmin(true);
         }
@@ -321,6 +323,7 @@ public class WebSocket {
         messageVo.setFormUser(fromWebSocketVo);
         messageVo.setText(text);
         messageVo.setChatType(chatType);
+        messageVo.setCreateTime(DateUtil.format(new Date(), "yyyy年MM月dd日 HH:mm:ss"));
         if (user.getUserRole() == ADMIN_ROLE) {
             messageVo.setIsAdmin(true);
         }
@@ -338,7 +341,7 @@ public class WebSocket {
         savaChat(userId, toId, text, null, chatType);
         Session toSession = SESSION_POOL.get(toId.toString());
         if (toSession != null) {
-            MessageVo messageVo = chatService.chatResult(userId, toId, text, chatType);
+            MessageVo messageVo = chatService.chatResult(userId, toId, text, chatType, DateUtil.date(System.currentTimeMillis()));
             String toJson = new Gson().toJson(messageVo);
             sendOneMessage(toId.toString(), toJson);
             log.info("发送给用户username={}，消息：{}", messageVo.getToUser(), toJson);

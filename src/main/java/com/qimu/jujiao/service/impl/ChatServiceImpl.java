@@ -1,6 +1,7 @@
 package com.qimu.jujiao.service.impl;
 
 
+import cn.hutool.core.date.DateUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.qimu.jujiao.common.ErrorCode;
@@ -19,6 +20,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -53,7 +55,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         // 两方共有聊天
         List<Chat> list = this.list(chatLambdaQueryWrapper);
         return list.stream().map(chat -> {
-            MessageVo messageVo = chatResult(loginUser.getId(), toId, chat.getText(), chatType);
+            MessageVo messageVo = chatResult(loginUser.getId(), toId, chat.getText(), chatType, chat.getCreateTime());
             if (chat.getFromId().equals(loginUser.getId())) {
                 messageVo.setIsMy(true);
             }
@@ -69,7 +71,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
     }
 
     @Override
-    public MessageVo chatResult(Long userId, Long toId, String text, Integer chatType) {
+    public MessageVo chatResult(Long userId, Long toId, String text, Integer chatType, Date createTime) {
         MessageVo messageVo = new MessageVo();
         User fromUser = userService.getById(userId);
         User toUser = userService.getById(toId);
@@ -81,6 +83,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         messageVo.setToUser(toWebSocketVo);
         messageVo.setChatType(chatType);
         messageVo.setText(text);
+        messageVo.setCreateTime(DateUtil.format(createTime, "yyyy年MM月dd日 HH:mm:ss"));
         return messageVo;
     }
 
@@ -107,6 +110,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
             if (chat.getFromId().equals(loginUser.getId())) {
                 messageVo.setIsMy(true);
             }
+            messageVo.setCreateTime(DateUtil.format(chat.getCreateTime(), "yyyy年MM月dd日 HH:mm:ss"));
             return messageVo;
         }).collect(Collectors.toList());
     }
