@@ -183,7 +183,8 @@ public class WebSocket {
     @OnMessage
     public void onMessage(String message, @PathParam("userId") String userId) {
         if ("PING".equals(message)) {
-            sendAllMessage("pong");
+            sendOneMessage(userId, "pong");
+            log.error("心跳包，发送给={},在线:{}人", userId, getOnlineCount());
             return;
         }
         log.info("服务端收到用户username={}的消息:{}", userId, message);
