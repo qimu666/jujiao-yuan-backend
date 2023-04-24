@@ -17,10 +17,10 @@ create table team
     teamStatus    int      default 0                 not null comment '0 - 公开，1 - 私有，2 - 加密',
     isDelete      tinyint  default 0                 not null comment '是否删除',
     announce      varchar(512)                       null comment '队伍公告',
-    updateTime    datetime default CURRENT_TIMESTAMP null,
-    teamId        bigint                             null comment '队伍聊天室(队伍id)'
+    updateTime datetime default CURRENT_TIMESTAMP null
 )
     comment '队伍' charset = utf8;
+
 
 
 
@@ -45,7 +45,7 @@ create table user
     userAccount   varchar(256)                       not null comment '账号',
     userAvatarUrl varchar(1024)                      null comment '用户头像',
     gender        tinyint                            null comment '性别 1 - 男  2-女',
-    userPassword  varchar(512)                       not null comment '密码',
+    userPassword  varchar(512)                       null comment '密码',
     contactInfo   varchar(512)                       null comment '联系方式',
     userDesc      varchar(512)                       null comment '个人简介',
     userStatus    int      default 0                 not null comment '状态 0 - 正常',
@@ -84,7 +84,7 @@ create table friends
     isDelete   tinyint  default 0                 not null comment '是否删除',
     remark     varchar(214)                       null comment '好友申请备注信息'
 )
-    comment '好友申请管理表' charset = utf8;
+    comment '好友申请管理表' charset = utf8mb4;
 
 
 -- auto-generated definition
@@ -92,15 +92,15 @@ create table chat
 (
     id         bigint auto_increment comment '聊天记录id'
         primary key,
-    fromId     bigint                             not null comment '发送消息id',
-    toId       bigint                             null comment '接收消息id',
-    text       varchar(512) charset utf8          not null comment '聊天内容',
-    chatType   tinyint                            not null comment '聊天类型 1-私聊 2-群聊',
-    createTime datetime default CURRENT_TIMESTAMP null comment '创建时间',
-    updateTime datetime default CURRENT_TIMESTAMP null,
-    teamId     bigint                             null
+    fromId     bigint                                  not null comment '发送消息id',
+    toId       bigint                                  null comment '接收消息id',
+    text       varchar(512) collate utf8mb4_unicode_ci null,
+    chatType   tinyint                                 not null comment '聊天类型 1-私聊 2-群聊',
+    createTime datetime default CURRENT_TIMESTAMP      null comment '创建时间',
+    updateTime datetime default CURRENT_TIMESTAMP      null,
+    teamId     bigint                                  null
 )
-    comment '聊天消息表' charset = utf8mb4;;
+    comment '聊天消息表' charset = utf8mb4;
 
 
 SET NAMES utf8mb4;
