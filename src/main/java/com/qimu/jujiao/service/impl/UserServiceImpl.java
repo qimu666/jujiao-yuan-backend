@@ -107,7 +107,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         user.setUserIds("[]");
 
         boolean saveResult = this.save(user);
-        log.info("user=" + user);
         if (!saveResult) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "注册失败 ");
         }

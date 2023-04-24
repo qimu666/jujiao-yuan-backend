@@ -47,9 +47,6 @@ public class UserController {
         }
         String userAccount = loginRequest.getUserAccount();
         String userPassword = loginRequest.getUserPassword();
-        if (StringUtils.isAnyBlank(userAccount, userPassword)) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR);
-        }
         User user = userService.userLogin(userAccount, userPassword, request);
         return ResultUtil.success(user, "登陆成功");
     }
