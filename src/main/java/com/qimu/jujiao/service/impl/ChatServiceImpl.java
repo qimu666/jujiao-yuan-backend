@@ -104,7 +104,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         return chatList.stream().map(chat -> {
             MessageVo messageVo = chatResult(chat.getFromId(), chat.getText());
             boolean isCaptain = userId != null && userId.equals(chat.getFromId());
-            if (chat.getFromId() == ADMIN_ROLE || isCaptain) {
+            if (userService.getById(chat.getFromId()).getUserRole() == ADMIN_ROLE || isCaptain) {
                 messageVo.setIsAdmin(true);
             }
             if (chat.getFromId().equals(loginUser.getId())) {
