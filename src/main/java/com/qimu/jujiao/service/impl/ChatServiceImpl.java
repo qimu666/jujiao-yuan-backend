@@ -57,6 +57,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         }
         List<MessageVo> chatRecords = getCache(CACHE_CHAT_PRIVATE, loginUser.getId());
         if (chatRecords != null) {
+            saveCache(CACHE_CHAT_PRIVATE, loginUser.getId(), chatRecords);
             return chatRecords;
         }
         LambdaQueryWrapper<Chat> chatLambdaQueryWrapper = new LambdaQueryWrapper<>();
@@ -82,7 +83,9 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
     public List<MessageVo> getHallChat(int chatType, User loginUser) {
         List<MessageVo> chatRecords = getCache(CACHE_CHAT_HALL, loginUser.getId());
         if (chatRecords != null) {
-            return checkIsMyMessage(loginUser, chatRecords);
+            List<MessageVo> messageVos = checkIsMyMessage(loginUser, chatRecords);
+            saveCache(CACHE_CHAT_HALL, loginUser.getId(), messageVos);
+            return messageVos;
         }
         LambdaQueryWrapper<Chat> chatLambdaQueryWrapper = new LambdaQueryWrapper<>();
         chatLambdaQueryWrapper.eq(Chat::getChatType, chatType);
@@ -142,11 +145,11 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         try {
             ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
             // 解决缓存雪崩
-            int i = RandomUtil.randomInt(1, 2);
+            int i = RandomUtil.randomInt(2, 3);
             if (redisKey.equals(CACHE_CHAT_HALL)) {
-                valueOperations.set(redisKey, messageVos, 1 + i / 10, TimeUnit.MINUTES);
+                valueOperations.set(redisKey, messageVos, 2 + i / 10, TimeUnit.MINUTES);
             } else {
-                valueOperations.set(redisKey + id, messageVos, 1 + i / 10, TimeUnit.MINUTES);
+                valueOperations.set(redisKey + id, messageVos, 2 + i / 10, TimeUnit.MINUTES);
             }
         } catch (Exception e) {
             log.error("redis set key error");
@@ -178,7 +181,9 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         }
         List<MessageVo> chatRecords = getCache(CACHE_CHAT_TEAM, teamId);
         if (chatRecords != null) {
-            return checkIsMyMessage(loginUser, chatRecords);
+            List<MessageVo> messageVos = checkIsMyMessage(loginUser, chatRecords);
+            saveCache(CACHE_CHAT_TEAM, teamId, messageVos);
+            return messageVos;
         }
         Team team = teamService.getById(teamId);
         LambdaQueryWrapper<Chat> chatLambdaQueryWrapper = new LambdaQueryWrapper<>();
