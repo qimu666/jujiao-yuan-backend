@@ -176,7 +176,7 @@ public class CacheWarming {
     /**
      * 每30分钟校验有没有过期
      */
-    @Scheduled(cron = "* 30 * * * ?")
+    @Scheduled(cron = "* 20 * * * ?")
     public void isExpires() {
         RLock rLock = redissonClient.getLock("jujiaoyuan:cache:isExpires:lock");
         try {

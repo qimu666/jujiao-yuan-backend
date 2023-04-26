@@ -4,6 +4,7 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import com.google.gson.Gson;
+import com.qimu.jujiao.config.HttpSessionConfigurator;
 import com.qimu.jujiao.model.entity.Chat;
 import com.qimu.jujiao.model.entity.Team;
 import com.qimu.jujiao.model.entity.User;
@@ -19,10 +20,8 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
-import javax.websocket.OnClose;
-import javax.websocket.OnMessage;
-import javax.websocket.OnOpen;
-import javax.websocket.Session;
+import javax.servlet.http.HttpSession;
+import javax.websocket.*;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
@@ -31,9 +30,9 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
-import static com.qimu.jujiao.contant.ChatConstant.PRIVATE_CHAT;
-import static com.qimu.jujiao.contant.ChatConstant.TEAM_CHAT;
+import static com.qimu.jujiao.contant.ChatConstant.*;
 import static com.qimu.jujiao.contant.UserConstant.ADMIN_ROLE;
+import static com.qimu.jujiao.contant.UserConstant.LOGIN_USER_STATUS;
 import static com.qimu.jujiao.utils.StringUtils.stringJsonListToLongSet;
 
 /**
@@ -41,9 +40,8 @@ import static com.qimu.jujiao.utils.StringUtils.stringJsonListToLongSet;
  */
 @Component
 @Slf4j
-@ServerEndpoint("/websocket/{userId}/{teamId}")
+@ServerEndpoint(value = "/websocket/{userId}/{teamId}", configurator = HttpSessionConfigurator.class)
 public class WebSocket {
-
     /**
      * 保存队伍的连接信息
      */
@@ -67,26 +65,7 @@ public class WebSocket {
      * 当前信息
      */
     private Session session;
-
-    /**
-     * 队伍内群发消息
-     *
-     * @param teamId
-     * @param msg
-     * @throws Exception
-     */
-    public static void broadcast(String teamId, String msg) {
-        ConcurrentHashMap<String, WebSocket> map = ROOMS.get(teamId);
-        // keySet获取map集合key的集合  然后在遍历key即可
-        for (String key : map.keySet()) {
-            try {
-                WebSocket webSocket = map.get(key);
-                webSocket.sendMessage(msg);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
+    private HttpSession httpSession;
 
     public static synchronized int getOnlineCount() {
         return onlineCount;
@@ -115,6 +94,27 @@ public class WebSocket {
         WebSocket.teamService = teamService;
     }
 
+
+    /**
+     * 队伍内群发消息
+     *
+     * @param teamId
+     * @param msg
+     * @throws Exception
+     */
+    public static void broadcast(String teamId, String msg) {
+        ConcurrentHashMap<String, WebSocket> map = ROOMS.get(teamId);
+        // keySet获取map集合key的集合  然后在遍历key即可
+        for (String key : map.keySet()) {
+            try {
+                WebSocket webSocket = map.get(key);
+                webSocket.sendMessage(msg);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     /**
      * 发送消息
      *
@@ -126,13 +126,18 @@ public class WebSocket {
     }
 
     @OnOpen
-    public void onOpen(Session session, @PathParam(value = "userId") String userId, @PathParam(value = "teamId") String teamId) {
+    public void onOpen(Session session, @PathParam(value = "userId") String userId, @PathParam(value = "teamId") String teamId, EndpointConfig config) {
         try {
             if (StringUtils.isBlank(userId) || "undefined".equals(userId)) {
                 sendError(userId, "参数有误");
                 return;
             }
-            this.session = session;
+            HttpSession httpSession = (HttpSession) config.getUserProperties().get(HttpSession.class.getName());
+            User user = (User) httpSession.getAttribute(LOGIN_USER_STATUS);
+            if (user != null) {
+                this.session = session;
+                this.httpSession = httpSession;
+            }
             if (!"NaN".equals(teamId)) {
                 if (!ROOMS.containsKey(teamId)) {
                     ConcurrentHashMap<String, WebSocket> room = new ConcurrentHashMap<>(0);
@@ -190,7 +195,6 @@ public class WebSocket {
         }
         log.info("服务端收到用户username={}的消息:{}", userId, message);
         MessageRequest messageRequest = new Gson().fromJson(message, MessageRequest.class);
-
         Long toId = messageRequest.getToId();
         Long teamId = messageRequest.getTeamId();
         String text = messageRequest.getText();
@@ -199,7 +203,7 @@ public class WebSocket {
         Team team = teamService.getById(teamId);
         if (chatType == PRIVATE_CHAT) {
             // 私聊
-            privateChat(Long.valueOf(userId), toId, text, chatType);
+            privateChat(fromUser, toId, text, chatType);
         } else if (chatType == TEAM_CHAT) {
             // 队伍内聊天
             teamChat(fromUser, text, team, chatType);
@@ -230,13 +234,100 @@ public class WebSocket {
         if (user.getId() == team.getUserId() || user.getUserRole() == ADMIN_ROLE) {
             messageVo.setIsAdmin(true);
         }
+        User loginUser = (User) this.httpSession.getAttribute(LOGIN_USER_STATUS);
+        if (loginUser.getId() == user.getId()) {
+            messageVo.setIsMy(true);
+        }
         String toJson = new Gson().toJson(messageVo);
         try {
             broadcast(String.valueOf(team.getId()), toJson);
+            chatService.deleteKey(CACHE_CHAT_TEAM, team.getId());
             log.error("队伍聊天，发送给={},队伍={},在线:{}人", user.getId(), team.getId(), getOnlineCount());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * 大厅聊天
+     *
+     * @param user
+     * @param text
+     */
+    private void hallChat(User user, String text, Integer chatType) {
+        savaChat(user.getId(), null, text, null, chatType);
+        MessageVo messageVo = new MessageVo();
+        WebSocketVo fromWebSocketVo = new WebSocketVo();
+        BeanUtils.copyProperties(user, fromWebSocketVo);
+        messageVo.setFormUser(fromWebSocketVo);
+        messageVo.setText(text);
+        messageVo.setChatType(chatType);
+        messageVo.setCreateTime(DateUtil.format(new Date(), "yyyy年MM月dd日 HH:mm:ss"));
+        if (user.getUserRole() == ADMIN_ROLE) {
+            messageVo.setIsAdmin(true);
+        }
+        User loginUser = (User) this.httpSession.getAttribute(LOGIN_USER_STATUS);
+        if (loginUser.getId() == user.getId()) {
+            messageVo.setIsMy(true);
+        }
+        String toJson = new Gson().toJson(messageVo);
+        sendAllMessage(toJson);
+        chatService.deleteKey(CACHE_CHAT_HALL, user.getId());
+    }
+
+    /**
+     * 私聊
+     *
+     * @param user
+     * @param text
+     */
+    private void privateChat(User user, Long toId, String text, Integer chatType) {
+        savaChat(user.getId(), toId, text, null, chatType);
+        Session toSession = SESSION_POOL.get(toId.toString());
+        if (toSession != null) {
+            MessageVo messageVo = chatService.chatResult(user.getId(), toId, text, chatType, DateUtil.date(System.currentTimeMillis()));
+            User loginUser = (User) this.httpSession.getAttribute(LOGIN_USER_STATUS);
+            if (loginUser.getId() == user.getId()) {
+                messageVo.setIsMy(true);
+            }
+            String toJson = new Gson().toJson(messageVo);
+            sendOneMessage(toId.toString(), toJson);
+            chatService.deleteKey(CACHE_CHAT_PRIVATE, user.getId());
+            chatService.deleteKey(CACHE_CHAT_PRIVATE, toId);
+            log.info("发送给用户username={}，消息：{}", messageVo.getToUser(), toJson);
+        } else {
+            log.info("发送失败，未找到用户username={}的session", toId);
+        }
+    }
+
+    /**
+     * 保存聊天
+     *
+     * @param userId
+     * @param toId
+     * @param text
+     */
+    private void savaChat(Long userId, Long toId, String text, Long teamId, Integer chatType) {
+        if (chatType == PRIVATE_CHAT) {
+            User user = userService.getById(userId);
+            Set<Long> userIds = stringJsonListToLongSet(user.getUserIds());
+            if (!userIds.contains(toId)) {
+                sendError(String.valueOf(userId), "该用户不是你的好友");
+                return;
+            }
+        }
+        Chat chat = new Chat();
+        chat.setFromId(userId);
+        chat.setText(String.valueOf(text));
+        chat.setChatType(chatType);
+        chat.setCreateTime(new Date());
+        if (toId != null && toId > 0) {
+            chat.setToId(toId);
+        }
+        if (teamId != null && teamId > 0) {
+            chat.setTeamId(teamId);
+        }
+        chatService.save(chat);
     }
 
     /**
@@ -307,76 +398,5 @@ public class WebSocket {
             webSocketVos.add(webSocketVo);
         }
         sendAllMessage(JSONUtil.toJsonStr(stringListHashMap));
-    }
-
-    /**
-     * 大厅聊天
-     *
-     * @param user
-     * @param text
-     */
-    private void hallChat(User user, String text, Integer chatType) {
-        savaChat(user.getId(), null, text, null, chatType);
-        MessageVo messageVo = new MessageVo();
-        WebSocketVo fromWebSocketVo = new WebSocketVo();
-        BeanUtils.copyProperties(user, fromWebSocketVo);
-        messageVo.setFormUser(fromWebSocketVo);
-        messageVo.setText(text);
-        messageVo.setChatType(chatType);
-        messageVo.setCreateTime(DateUtil.format(new Date(), "yyyy年MM月dd日 HH:mm:ss"));
-        if (user.getUserRole() == ADMIN_ROLE) {
-            messageVo.setIsAdmin(true);
-        }
-        String toJson = new Gson().toJson(messageVo);
-        sendAllMessage(toJson);
-    }
-
-    /**
-     * 私聊
-     *
-     * @param userId
-     * @param text
-     */
-    private void privateChat(Long userId, Long toId, String text, Integer chatType) {
-        savaChat(userId, toId, text, null, chatType);
-        Session toSession = SESSION_POOL.get(toId.toString());
-        if (toSession != null) {
-            MessageVo messageVo = chatService.chatResult(userId, toId, text, chatType, DateUtil.date(System.currentTimeMillis()));
-            String toJson = new Gson().toJson(messageVo);
-            sendOneMessage(toId.toString(), toJson);
-            log.info("发送给用户username={}，消息：{}", messageVo.getToUser(), toJson);
-        } else {
-            log.info("发送失败，未找到用户username={}的session", toId);
-        }
-    }
-
-    /**
-     * 保存聊天
-     *
-     * @param userId
-     * @param toId
-     * @param text
-     */
-    private void savaChat(Long userId, Long toId, String text, Long teamId, Integer chatType) {
-        if (chatType == PRIVATE_CHAT) {
-            User user = userService.getById(userId);
-            Set<Long> userIds = stringJsonListToLongSet(user.getUserIds());
-            if (!userIds.contains(toId)) {
-                sendError(String.valueOf(userId), "该用户不是你的好友");
-                return;
-            }
-        }
-        Chat chat = new Chat();
-        chat.setFromId(userId);
-        chat.setText(String.valueOf(text));
-        chat.setChatType(chatType);
-        chat.setCreateTime(new Date());
-        if (toId != null && toId > 0) {
-            chat.setToId(toId);
-        }
-        if (teamId != null && teamId > 0) {
-            chat.setTeamId(teamId);
-        }
-        chatService.save(chat);
     }
 }

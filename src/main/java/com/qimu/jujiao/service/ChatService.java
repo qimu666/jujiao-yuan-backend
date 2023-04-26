@@ -16,6 +16,24 @@ import java.util.List;
  */
 public interface ChatService extends IService<Chat> {
     /**
+     * 保存缓存
+     *
+     * @param redisKey
+     * @param id
+     * @param messageVos
+     */
+    void saveCache(String redisKey, Long id, List<MessageVo> messageVos);
+
+    /**
+     * 获取缓存
+     *
+     * @param redisKey
+     * @param id
+     * @return
+     */
+    List<MessageVo> getCache(String redisKey, Long id);
+
+    /**
      * 获取私聊聊天内容
      *
      * @param chatRequest
@@ -56,4 +74,11 @@ public interface ChatService extends IService<Chat> {
      */
     List<MessageVo> getTeamChat(ChatRequest chatRequest, int chatType, User loginUser);
 
+    /**
+     * 删除key
+     *
+     * @param key
+     * @param id
+     */
+    void deleteKey(String key, Long id);
 }

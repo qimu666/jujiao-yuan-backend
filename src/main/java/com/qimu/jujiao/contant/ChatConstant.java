@@ -19,4 +19,11 @@ public interface ChatConstant {
      * 大厅聊天
      */
     int HALL_CHAT = 3;
+
+    String CACHE_CHAT_HALL = "jujiaoyuan:chat:chat_records:chat_hall";
+
+    String CACHE_CHAT_PRIVATE = "jujiaoyuan:chat:chat_records:chat_private";
+
+    String CACHE_CHAT_TEAM = "jujiaoyuan:chat:chat_records:chat_team";
+
 }

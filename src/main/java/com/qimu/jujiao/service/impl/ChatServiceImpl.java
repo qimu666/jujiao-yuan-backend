@@ -2,6 +2,7 @@ package com.qimu.jujiao.service.impl;
 
 
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.util.RandomUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.qimu.jujiao.common.ErrorCode;
@@ -17,13 +18,17 @@ import com.qimu.jujiao.service.ChatService;
 import com.qimu.jujiao.service.TeamService;
 import com.qimu.jujiao.service.UserService;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.qimu.jujiao.contant.ChatConstant.*;
 import static com.qimu.jujiao.contant.UserConstant.ADMIN_ROLE;
 
 /**
@@ -34,6 +39,10 @@ import static com.qimu.jujiao.contant.UserConstant.ADMIN_ROLE;
 @Service
 public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         implements ChatService {
+
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate;
+
     @Resource
     private UserService userService;
 
@@ -46,6 +55,10 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         if (toId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "状态异常请重试");
         }
+        List<MessageVo> chatRecords = getCache(CACHE_CHAT_PRIVATE, loginUser.getId());
+        if (chatRecords != null) {
+            return chatRecords;
+        }
         LambdaQueryWrapper<Chat> chatLambdaQueryWrapper = new LambdaQueryWrapper<>();
         chatLambdaQueryWrapper.
                 and(privateChat -> privateChat.eq(Chat::getFromId, loginUser.getId()).eq(Chat::getToId, toId)
@@ -54,20 +67,90 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
                 ).eq(Chat::getChatType, chatType);
         // 两方共有聊天
         List<Chat> list = this.list(chatLambdaQueryWrapper);
-        return list.stream().map(chat -> {
+        List<MessageVo> messageVoList = list.stream().map(chat -> {
             MessageVo messageVo = chatResult(loginUser.getId(), toId, chat.getText(), chatType, chat.getCreateTime());
             if (chat.getFromId().equals(loginUser.getId())) {
                 messageVo.setIsMy(true);
             }
             return messageVo;
         }).collect(Collectors.toList());
+        saveCache(CACHE_CHAT_PRIVATE, loginUser.getId(), messageVoList);
+        return messageVoList;
     }
 
     @Override
     public List<MessageVo> getHallChat(int chatType, User loginUser) {
+        List<MessageVo> chatRecords = getCache(CACHE_CHAT_HALL, loginUser.getId());
+        if (chatRecords != null) {
+            return checkIsMyMessage(loginUser, chatRecords);
+        }
         LambdaQueryWrapper<Chat> chatLambdaQueryWrapper = new LambdaQueryWrapper<>();
         chatLambdaQueryWrapper.eq(Chat::getChatType, chatType);
-        return returnMessage(loginUser, null, chatLambdaQueryWrapper);
+        List<MessageVo> messageVos = returnMessage(loginUser, null, chatLambdaQueryWrapper);
+        saveCache(CACHE_CHAT_HALL, loginUser.getId(), messageVos);
+        return messageVos;
+    }
+
+    private List<MessageVo> checkIsMyMessage(User loginUser, List<MessageVo> chatRecords) {
+        return chatRecords.stream().peek(chat -> {
+            if (chat.getFormUser().getId() != loginUser.getId() && chat.getIsMy()) {
+                chat.setIsMy(false);
+            }
+            if (chat.getFormUser().getId() == loginUser.getId() && !chat.getIsMy()) {
+                chat.setIsMy(true);
+            }
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * 获取缓存
+     *
+     * @param redisKey
+     * @param id
+     * @return
+     */
+    @Override
+    public List<MessageVo> getCache(String redisKey, Long id) {
+        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        List<MessageVo> chatRecords;
+        if (redisKey.equals(CACHE_CHAT_HALL)) {
+            chatRecords = (List<MessageVo>) valueOperations.get(redisKey);
+        } else {
+            chatRecords = (List<MessageVo>) valueOperations.get(redisKey + id);
+        }
+        return chatRecords;
+    }
+
+    @Override
+    public void deleteKey(String key, Long id) {
+        if (key.equals(CACHE_CHAT_HALL)) {
+            redisTemplate.delete(key);
+        } else {
+            redisTemplate.delete(key + id);
+        }
+    }
+
+    /**
+     * 保存缓存
+     *
+     * @param redisKey
+     * @param id
+     * @param messageVos
+     */
+    @Override
+    public void saveCache(String redisKey, Long id, List<MessageVo> messageVos) {
+        try {
+            ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+            // 解决缓存雪崩
+            int i = RandomUtil.randomInt(1, 2);
+            if (redisKey.equals(CACHE_CHAT_HALL)) {
+                valueOperations.set(redisKey, messageVos, 1 + i / 10, TimeUnit.MINUTES);
+            } else {
+                valueOperations.set(redisKey + id, messageVos, 1 + i / 10, TimeUnit.MINUTES);
+            }
+        } catch (Exception e) {
+            log.error("redis set key error");
+        }
     }
 
     @Override
@@ -93,11 +176,18 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         if (teamId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求有误");
         }
+        List<MessageVo> chatRecords = getCache(CACHE_CHAT_TEAM, teamId);
+        if (chatRecords != null) {
+            return checkIsMyMessage(loginUser, chatRecords);
+        }
         Team team = teamService.getById(teamId);
         LambdaQueryWrapper<Chat> chatLambdaQueryWrapper = new LambdaQueryWrapper<>();
         chatLambdaQueryWrapper.eq(Chat::getChatType, chatType).eq(Chat::getTeamId, teamId);
-        return returnMessage(loginUser, team.getUserId(), chatLambdaQueryWrapper);
+        List<MessageVo> messageVos = returnMessage(loginUser, team.getUserId(), chatLambdaQueryWrapper);
+        saveCache(CACHE_CHAT_TEAM, teamId, messageVos);
+        return messageVos;
     }
+
 
     private List<MessageVo> returnMessage(User loginUser, Long userId, LambdaQueryWrapper<Chat> chatLambdaQueryWrapper) {
         List<Chat> chatList = this.list(chatLambdaQueryWrapper);
