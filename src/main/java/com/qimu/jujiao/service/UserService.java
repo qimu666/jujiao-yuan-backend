@@ -96,6 +96,15 @@ public interface UserService extends IService<User> {
     int updateUser(User user, User currentUser);
 
     /**
+     * 搜索好友
+     *
+     * @param userQueryRequest
+     * @param currentUser
+     * @return
+     */
+    List<User> searchFriend(UserQueryRequest userQueryRequest, User currentUser);
+
+    /**
      * 获取当前用户是否为管理员
      *
      * @param user

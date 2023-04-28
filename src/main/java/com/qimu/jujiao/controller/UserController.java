@@ -218,4 +218,14 @@ public class UserController {
         boolean deleteFriend = userService.deleteFriend(currentUser, id);
         return ResultUtil.success(deleteFriend);
     }
+
+    @PostMapping("/searchFriend")
+    public BaseResponse<List<User>> searchFriend(@RequestBody UserQueryRequest userQueryRequest, HttpServletRequest request) {
+        if (userQueryRequest == null) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "用户不存在");
+        }
+        User currentUser = userService.getLoginUser(request);
+        List<User> searchFriend = userService.searchFriend(userQueryRequest, currentUser);
+        return ResultUtil.success(searchFriend);
+    }
 }
