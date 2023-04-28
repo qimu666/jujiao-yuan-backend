@@ -241,7 +241,7 @@ public class WebSocket {
         String toJson = new Gson().toJson(messageVo);
         try {
             broadcast(String.valueOf(team.getId()), toJson);
-            chatService.deleteKey(CACHE_CHAT_TEAM, team.getId());
+            chatService.deleteKey(CACHE_CHAT_TEAM, String.valueOf(team.getId()));
             log.error("队伍聊天，发送给={},队伍={},在线:{}人", user.getId(), team.getId(), getOnlineCount());
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -272,7 +272,7 @@ public class WebSocket {
         }
         String toJson = new Gson().toJson(messageVo);
         sendAllMessage(toJson);
-        chatService.deleteKey(CACHE_CHAT_HALL, user.getId());
+        chatService.deleteKey(CACHE_CHAT_HALL, String.valueOf(user.getId()));
     }
 
     /**
@@ -292,12 +292,12 @@ public class WebSocket {
             }
             String toJson = new Gson().toJson(messageVo);
             sendOneMessage(toId.toString(), toJson);
-            chatService.deleteKey(CACHE_CHAT_PRIVATE, user.getId());
-            chatService.deleteKey(CACHE_CHAT_PRIVATE, toId);
             log.info("发送给用户username={}，消息：{}", messageVo.getToUser(), toJson);
         } else {
             log.info("发送失败，未找到用户username={}的session", toId);
         }
+        chatService.deleteKey(CACHE_CHAT_PRIVATE, user.getId() + "" + toId);
+        chatService.deleteKey(CACHE_CHAT_PRIVATE, toId + "" + user.getId());
     }
 
     /**

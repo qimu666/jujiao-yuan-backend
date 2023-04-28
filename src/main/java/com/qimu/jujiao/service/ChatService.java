@@ -22,7 +22,7 @@ public interface ChatService extends IService<Chat> {
      * @param id
      * @param messageVos
      */
-    void saveCache(String redisKey, Long id, List<MessageVo> messageVos);
+    void saveCache(String redisKey, String id, List<MessageVo> messageVos);
 
     /**
      * 获取缓存
@@ -31,7 +31,7 @@ public interface ChatService extends IService<Chat> {
      * @param id
      * @return
      */
-    List<MessageVo> getCache(String redisKey, Long id);
+    List<MessageVo> getCache(String redisKey, String id);
 
     /**
      * 获取私聊聊天内容
@@ -74,11 +74,12 @@ public interface ChatService extends IService<Chat> {
      */
     List<MessageVo> getTeamChat(ChatRequest chatRequest, int chatType, User loginUser);
 
+
     /**
      * 删除key
      *
      * @param key
      * @param id
      */
-    void deleteKey(String key, Long id);
+    void deleteKey(String key, String id);
 }

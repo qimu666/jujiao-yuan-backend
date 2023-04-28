@@ -55,9 +55,9 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         if (toId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "状态异常请重试");
         }
-        List<MessageVo> chatRecords = getCache(CACHE_CHAT_PRIVATE, loginUser.getId());
+        List<MessageVo> chatRecords = getCache(CACHE_CHAT_PRIVATE, loginUser.getId() + "" + toId);
         if (chatRecords != null) {
-            saveCache(CACHE_CHAT_PRIVATE, loginUser.getId(), chatRecords);
+            saveCache(CACHE_CHAT_PRIVATE, loginUser.getId() + "" + toId, chatRecords);
             return chatRecords;
         }
         LambdaQueryWrapper<Chat> chatLambdaQueryWrapper = new LambdaQueryWrapper<>();
@@ -75,22 +75,22 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
             }
             return messageVo;
         }).collect(Collectors.toList());
-        saveCache(CACHE_CHAT_PRIVATE, loginUser.getId(), messageVoList);
+        saveCache(CACHE_CHAT_PRIVATE, loginUser.getId() + "" + toId, messageVoList);
         return messageVoList;
     }
 
     @Override
     public List<MessageVo> getHallChat(int chatType, User loginUser) {
-        List<MessageVo> chatRecords = getCache(CACHE_CHAT_HALL, loginUser.getId());
+        List<MessageVo> chatRecords = getCache(CACHE_CHAT_HALL, String.valueOf(loginUser.getId()));
         if (chatRecords != null) {
             List<MessageVo> messageVos = checkIsMyMessage(loginUser, chatRecords);
-            saveCache(CACHE_CHAT_HALL, loginUser.getId(), messageVos);
+            saveCache(CACHE_CHAT_HALL, String.valueOf(loginUser.getId()), messageVos);
             return messageVos;
         }
         LambdaQueryWrapper<Chat> chatLambdaQueryWrapper = new LambdaQueryWrapper<>();
         chatLambdaQueryWrapper.eq(Chat::getChatType, chatType);
         List<MessageVo> messageVos = returnMessage(loginUser, null, chatLambdaQueryWrapper);
-        saveCache(CACHE_CHAT_HALL, loginUser.getId(), messageVos);
+        saveCache(CACHE_CHAT_HALL, String.valueOf(loginUser.getId()), messageVos);
         return messageVos;
     }
 
@@ -113,7 +113,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
      * @return
      */
     @Override
-    public List<MessageVo> getCache(String redisKey, Long id) {
+    public List<MessageVo> getCache(String redisKey, String id) {
         ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
         List<MessageVo> chatRecords;
         if (redisKey.equals(CACHE_CHAT_HALL)) {
@@ -125,7 +125,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
     }
 
     @Override
-    public void deleteKey(String key, Long id) {
+    public void deleteKey(String key, String id) {
         if (key.equals(CACHE_CHAT_HALL)) {
             redisTemplate.delete(key);
         } else {
@@ -141,7 +141,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
      * @param messageVos
      */
     @Override
-    public void saveCache(String redisKey, Long id, List<MessageVo> messageVos) {
+    public void saveCache(String redisKey, String id, List<MessageVo> messageVos) {
         try {
             ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
             // 解决缓存雪崩
@@ -179,17 +179,17 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         if (teamId == null) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "请求有误");
         }
-        List<MessageVo> chatRecords = getCache(CACHE_CHAT_TEAM, teamId);
+        List<MessageVo> chatRecords = getCache(CACHE_CHAT_TEAM, String.valueOf(teamId));
         if (chatRecords != null) {
             List<MessageVo> messageVos = checkIsMyMessage(loginUser, chatRecords);
-            saveCache(CACHE_CHAT_TEAM, teamId, messageVos);
+            saveCache(CACHE_CHAT_TEAM, String.valueOf(teamId), messageVos);
             return messageVos;
         }
         Team team = teamService.getById(teamId);
         LambdaQueryWrapper<Chat> chatLambdaQueryWrapper = new LambdaQueryWrapper<>();
         chatLambdaQueryWrapper.eq(Chat::getChatType, chatType).eq(Chat::getTeamId, teamId);
         List<MessageVo> messageVos = returnMessage(loginUser, team.getUserId(), chatLambdaQueryWrapper);
-        saveCache(CACHE_CHAT_TEAM, teamId, messageVos);
+        saveCache(CACHE_CHAT_TEAM, String.valueOf(teamId), messageVos);
         return messageVos;
     }
 
