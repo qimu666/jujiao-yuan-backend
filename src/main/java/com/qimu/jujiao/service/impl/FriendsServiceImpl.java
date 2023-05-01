@@ -16,6 +16,8 @@ import com.qimu.jujiao.service.FriendsService;
 import com.qimu.jujiao.service.UserService;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +27,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.qimu.jujiao.contant.FriendConstant.*;
@@ -40,6 +43,9 @@ public class FriendsServiceImpl extends ServiceImpl<FriendsMapper, Friends> impl
     @Resource
     private UserService userService;
 
+    @Resource
+    private RedissonClient redissonClient;
+
     @Override
     public boolean addFriendRecords(User loginUser, FriendAddRequest friendAddRequest) {
         if (StringUtils.isNotBlank(friendAddRequest.getRemark()) && friendAddRequest.getRemark().length() > 120) {
@@ -52,27 +58,44 @@ public class FriendsServiceImpl extends ServiceImpl<FriendsMapper, Friends> impl
         if (loginUser.getId() == friendAddRequest.getReceiveId()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "不能添加自己为好友");
         }
-        // 2.条数大于等于1 就不能再添加
-        LambdaQueryWrapper<Friends> friendsLambdaQueryWrapper = new LambdaQueryWrapper<>();
-        friendsLambdaQueryWrapper.eq(Friends::getReceiveId, friendAddRequest.getReceiveId());
-        friendsLambdaQueryWrapper.eq(Friends::getFromId, loginUser.getId());
-        List<Friends> list = this.list(friendsLambdaQueryWrapper);
-        list.forEach(friends -> {
-            if (list.size() > 1 && friends.getStatus() == DEFAULT_STATUS) {
-                throw new BusinessException(ErrorCode.PARAMS_ERROR, "不能重复申请");
+        RLock lock = redissonClient.getLock("jujiaoyuan:apply");
+        try {
+            // 抢到锁并执行
+            if (lock.tryLock(0, -1, TimeUnit.MILLISECONDS)) {
+                // 2.条数大于等于1 就不能再添加
+                LambdaQueryWrapper<Friends> friendsLambdaQueryWrapper = new LambdaQueryWrapper<>();
+                friendsLambdaQueryWrapper.eq(Friends::getReceiveId, friendAddRequest.getReceiveId());
+                friendsLambdaQueryWrapper.eq(Friends::getFromId, loginUser.getId());
+                List<Friends> list = this.list(friendsLambdaQueryWrapper);
+                list.forEach(friends -> {
+                    if (list.size() > 1 && friends.getStatus() == DEFAULT_STATUS) {
+                        throw new BusinessException(ErrorCode.PARAMS_ERROR, "不能重复申请");
+                    }
+                });
+                Friends newFriend = new Friends();
+                newFriend.setFromId(loginUser.getId());
+                newFriend.setReceiveId(friendAddRequest.getReceiveId());
+                if (StringUtils.isBlank(friendAddRequest.getRemark())) {
+                    newFriend.setRemark("我是" + userService.getById(loginUser.getId()).getUsername());
+                } else {
+                    newFriend.setRemark(friendAddRequest.getRemark());
+                }
+                newFriend.setCreateTime(new Date());
+                return this.save(newFriend);
             }
-        });
-        Friends newFriend = new Friends();
-        newFriend.setFromId(loginUser.getId());
-        newFriend.setReceiveId(friendAddRequest.getReceiveId());
-        if (StringUtils.isBlank(friendAddRequest.getRemark())) {
-            newFriend.setRemark("我是" + userService.getById(loginUser.getId()).getUsername());
-        } else {
-            newFriend.setRemark(friendAddRequest.getRemark());
+        } catch (InterruptedException e) {
+            log.error("joinTeam error", e);
+            return false;
+        } finally {
+            // 只能释放自己的锁
+            if (lock.isHeldByCurrentThread()) {
+                System.out.println("unLock: " + Thread.currentThread().getId());
+                lock.unlock();
+            }
         }
-        newFriend.setCreateTime(new Date());
-        return this.save(newFriend);
+        return false;
     }
+
 
     @Override
     public List<FriendsRecordVO> obtainFriendApplicationRecords(User loginUser) {
@@ -99,7 +122,15 @@ public class FriendsServiceImpl extends ServiceImpl<FriendsMapper, Friends> impl
         // 查询出当前用户所有申请、同意记录
         LambdaQueryWrapper<Friends> myApplyLambdaQueryWrapper = new LambdaQueryWrapper<>();
         myApplyLambdaQueryWrapper.eq(Friends::getFromId, loginUser.getId());
-        return toFriendsVo(myApplyLambdaQueryWrapper);
+        List<Friends> friendsList = this.list(myApplyLambdaQueryWrapper);
+        Collections.reverse(friendsList);
+        return friendsList.stream().map(friend -> {
+            FriendsRecordVO friendsRecordVO = new FriendsRecordVO();
+            BeanUtils.copyProperties(friend, friendsRecordVO);
+            User user = userService.getById(friend.getReceiveId());
+            friendsRecordVO.setApplyUser(userService.getSafetyUser(user));
+            return friendsRecordVO;
+        }).collect(Collectors.toList());
     }
 
     @Override
@@ -137,7 +168,7 @@ public class FriendsServiceImpl extends ServiceImpl<FriendsMapper, Friends> impl
         friendsLambdaQueryWrapper.eq(Friends::getReceiveId, loginUser.getId());
         friendsLambdaQueryWrapper.eq(Friends::getFromId, fromId);
         long recordCount = this.count(friendsLambdaQueryWrapper);
-        // 条数小于等于1 就不能再同意
+        // 条数小于1 就不能再同意
         if (recordCount < 1) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "该申请不存在");
         }
