@@ -1,6 +1,8 @@
 package com.qimu.jujiao.controller;
 
 import cn.hutool.core.util.RandomUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.qimu.jujiao.common.BaseResponse;
 import com.qimu.jujiao.common.ErrorCode;
 import com.qimu.jujiao.common.ResultUtil;
@@ -93,13 +95,19 @@ public class UserController {
                 return ResultUtil.success(fixTheFirstUser(userList));
             }
         }
-        List<User> userList = userService.list();
-        // 打乱并固定第一个用户
-        List<User> result = fixTheFirstUser(userList).stream().map(user -> userService.getSafetyUser(user)).collect(Collectors.toList());
+        List<User> result = null;
         try {
             if (loginUser != null) {
+                List<User> userList = userService.list();
+                // 打乱并固定第一个用户
+                result = fixTheFirstUser(userList).stream().map(user -> userService.getSafetyUser(user)).collect(Collectors.toList());
                 redisTemplate.opsForValue().set(userService.redisFormat(loginUser.getId()), result, 1 + RandomUtil.randomInt(1, 2) / 10, TimeUnit.MINUTES);
             } else {
+                // 未登录只能查看20条
+                Page<User> userPage = new Page<>(1, 30);
+                LambdaQueryWrapper<User> userLambdaQueryWrapper = new LambdaQueryWrapper<>();
+                Page<User> page = userService.page(userPage, userLambdaQueryWrapper);
+                result = fixTheFirstUser(page.getRecords()).stream().map(user -> userService.getSafetyUser(user)).collect(Collectors.toList());
                 redisTemplate.opsForValue().set("jujiaoyuan:user:notLogin", result, 10, TimeUnit.MINUTES);
             }
         } catch (Exception e) {

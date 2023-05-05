@@ -28,6 +28,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static com.qimu.jujiao.contant.FriendConstant.*;
@@ -167,36 +168,39 @@ public class FriendsServiceImpl extends ServiceImpl<FriendsMapper, Friends> impl
         LambdaQueryWrapper<Friends> friendsLambdaQueryWrapper = new LambdaQueryWrapper<>();
         friendsLambdaQueryWrapper.eq(Friends::getReceiveId, loginUser.getId());
         friendsLambdaQueryWrapper.eq(Friends::getFromId, fromId);
-        long recordCount = this.count(friendsLambdaQueryWrapper);
+        List<Friends> recordCount = this.list(friendsLambdaQueryWrapper);
+        List<Friends> collect = recordCount.stream().filter(f -> f.getStatus() == DEFAULT_STATUS).collect(Collectors.toList());
         // 条数小于1 就不能再同意
-        if (recordCount < 1) {
+        if (collect.isEmpty()) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR, "该申请不存在");
         }
-        Friends friend = this.getOne(friendsLambdaQueryWrapper);
-        if (DateUtil.between(new Date(), friend.getCreateTime(), DateUnit.DAY) >= 3 || friend.getStatus() == EXPIRED_STATUS) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "该申请已过期");
+        if (collect.size() > 1) {
+            throw new BusinessException(ErrorCode.PARAMS_ERROR, "操作有误,请重试");
         }
-        if (friend.getStatus() == AGREE_STATUS) {
-            throw new BusinessException(ErrorCode.PARAMS_ERROR, "该申请已同意");
-        }
-        // 条数为空才可以同意
-        // 1. 分别查询receiveId和fromId的用户，更改userIds中的数据
-        User receiveUser = userService.getById(loginUser.getId());
-        User fromUser = userService.getById(fromId);
-        Set<Long> receiveUserIds = stringJsonListToLongSet(receiveUser.getUserIds());
-        Set<Long> fromUserUserIds = stringJsonListToLongSet(fromUser.getUserIds());
+        AtomicBoolean flag = new AtomicBoolean(false);
+        collect.forEach(friend -> {
+            if (DateUtil.between(new Date(), friend.getCreateTime(), DateUnit.DAY) >= 3 || friend.getStatus() == EXPIRED_STATUS) {
+                throw new BusinessException(ErrorCode.PARAMS_ERROR, "该申请已过期");
+            }
+            // 1. 分别查询receiveId和fromId的用户，更改userIds中的数据
+            User receiveUser = userService.getById(loginUser.getId());
+            User fromUser = userService.getById(fromId);
+            Set<Long> receiveUserIds = stringJsonListToLongSet(receiveUser.getUserIds());
+            Set<Long> fromUserUserIds = stringJsonListToLongSet(fromUser.getUserIds());
 
-        fromUserUserIds.add(receiveUser.getId());
-        receiveUserIds.add(fromUser.getId());
+            fromUserUserIds.add(receiveUser.getId());
+            receiveUserIds.add(fromUser.getId());
 
-        Gson gson = new Gson();
-        String jsonFromUserUserIds = gson.toJson(fromUserUserIds);
-        String jsonReceiveUserIds = gson.toJson(receiveUserIds);
-        receiveUser.setUserIds(jsonReceiveUserIds);
-        fromUser.setUserIds(jsonFromUserUserIds);
-        // 2. 修改状态由0改为1
-        friend.setStatus(AGREE_STATUS);
-        return userService.updateById(fromUser) && userService.updateById(receiveUser) && this.updateById(friend);
+            Gson gson = new Gson();
+            String jsonFromUserUserIds = gson.toJson(fromUserUserIds);
+            String jsonReceiveUserIds = gson.toJson(receiveUserIds);
+            receiveUser.setUserIds(jsonReceiveUserIds);
+            fromUser.setUserIds(jsonFromUserUserIds);
+            // 2. 修改状态由0改为1
+            friend.setStatus(AGREE_STATUS);
+            flag.set(userService.updateById(fromUser) && userService.updateById(receiveUser) && this.updateById(friend));
+        });
+        return flag.get();
     }
 
     @Override
