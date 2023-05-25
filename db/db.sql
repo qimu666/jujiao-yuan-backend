@@ -1,4 +1,6 @@
 create schema jujiao_yuan collate utf8mb4_general_ci;
+ALTER DATABASE jujiao_yuan CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+use jujiao_yuan;
 
 -- auto-generated definition
 create table team
@@ -17,10 +19,9 @@ create table team
     teamStatus    int      default 0                 not null comment '0 - 公开，1 - 私有，2 - 加密',
     isDelete      tinyint  default 0                 not null comment '是否删除',
     announce      varchar(512)                       null comment '队伍公告',
-    updateTime datetime default CURRENT_TIMESTAMP null
+    updateTime    datetime default CURRENT_TIMESTAMP null
 )
     comment '队伍' charset = utf8;
-
 
 
 
