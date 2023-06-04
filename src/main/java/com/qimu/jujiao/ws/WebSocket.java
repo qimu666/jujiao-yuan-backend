@@ -222,7 +222,6 @@ public class WebSocket {
      * @param chatType
      */
     private void teamChat(User user, String text, Team team, Integer chatType) {
-        savaChat(user.getId(), null, text, team.getId(), chatType);
         MessageVo messageVo = new MessageVo();
         WebSocketVo fromWebSocketVo = new WebSocketVo();
         BeanUtils.copyProperties(user, fromWebSocketVo);
@@ -241,6 +240,7 @@ public class WebSocket {
         String toJson = new Gson().toJson(messageVo);
         try {
             broadcast(String.valueOf(team.getId()), toJson);
+            savaChat(user.getId(), null, text, team.getId(), chatType);
             chatService.deleteKey(CACHE_CHAT_TEAM, String.valueOf(team.getId()));
             log.error("队伍聊天，发送给={},队伍={},在线:{}人", user.getId(), team.getId(), getOnlineCount());
         } catch (Exception e) {
@@ -255,7 +255,6 @@ public class WebSocket {
      * @param text
      */
     private void hallChat(User user, String text, Integer chatType) {
-        savaChat(user.getId(), null, text, null, chatType);
         MessageVo messageVo = new MessageVo();
         WebSocketVo fromWebSocketVo = new WebSocketVo();
         BeanUtils.copyProperties(user, fromWebSocketVo);
@@ -272,6 +271,7 @@ public class WebSocket {
         }
         String toJson = new Gson().toJson(messageVo);
         sendAllMessage(toJson);
+        savaChat(user.getId(), null, text, null, chatType);
         chatService.deleteKey(CACHE_CHAT_HALL, String.valueOf(user.getId()));
     }
 
@@ -282,7 +282,6 @@ public class WebSocket {
      * @param text
      */
     private void privateChat(User user, Long toId, String text, Integer chatType) {
-        savaChat(user.getId(), toId, text, null, chatType);
         Session toSession = SESSION_POOL.get(toId.toString());
         if (toSession != null) {
             MessageVo messageVo = chatService.chatResult(user.getId(), toId, text, chatType, DateUtil.date(System.currentTimeMillis()));
@@ -292,6 +291,7 @@ public class WebSocket {
             }
             String toJson = new Gson().toJson(messageVo);
             sendOneMessage(toId.toString(), toJson);
+            savaChat(user.getId(), toId, text, null, chatType);
             log.info("发送给用户username={}，消息：{}", messageVo.getToUser(), toJson);
         } else {
             log.info("发送失败，未找到用户username={}的session", toId);
