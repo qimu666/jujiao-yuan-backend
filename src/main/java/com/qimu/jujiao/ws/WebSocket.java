@@ -276,10 +276,12 @@ public class WebSocket {
     }
 
     /**
-     * 私聊
+     * 私人聊天
      *
-     * @param user
-     * @param text
+     * @param user     使用者
+     * @param toId     至id
+     * @param text     文本
+     * @param chatType 聊天类型
      */
     private void privateChat(User user, Long toId, String text, Integer chatType) {
         Session toSession = SESSION_POOL.get(toId.toString());
@@ -291,11 +293,11 @@ public class WebSocket {
             }
             String toJson = new Gson().toJson(messageVo);
             sendOneMessage(toId.toString(), toJson);
-            savaChat(user.getId(), toId, text, null, chatType);
             log.info("发送给用户username={}，消息：{}", messageVo.getToUser(), toJson);
         } else {
-            log.info("发送失败，未找到用户username={}的session", toId);
+            log.info("用户不在线username={}的session", toId);
         }
+        savaChat(user.getId(), toId, text, null, chatType);
         chatService.deleteKey(CACHE_CHAT_PRIVATE, user.getId() + "" + toId);
         chatService.deleteKey(CACHE_CHAT_PRIVATE, toId + "" + user.getId());
     }
@@ -303,9 +305,11 @@ public class WebSocket {
     /**
      * 保存聊天
      *
-     * @param userId
-     * @param toId
-     * @param text
+     * @param userId   用户id
+     * @param toId     至id
+     * @param text     文本
+     * @param teamId   团队id
+     * @param chatType 聊天类型
      */
     private void savaChat(Long userId, Long toId, String text, Long teamId, Integer chatType) {
         if (chatType == PRIVATE_CHAT) {
@@ -333,8 +337,8 @@ public class WebSocket {
     /**
      * 发送失败
      *
-     * @param userId
-     * @param errorMessage
+     * @param userId       用户id
+     * @param errorMessage 错误消息
      */
     private void sendError(String userId, String errorMessage) {
         JSONObject obj = new JSONObject();

@@ -41,7 +41,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
         implements ChatService {
 
     @Resource
-    private RedisTemplate<String, Object> redisTemplate;
+    private RedisTemplate<String, List<MessageVo>> redisTemplate;
 
     @Resource
     private UserService userService;
@@ -114,12 +114,12 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
      */
     @Override
     public List<MessageVo> getCache(String redisKey, String id) {
-        ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+        ValueOperations<String, List<MessageVo>> valueOperations = redisTemplate.opsForValue();
         List<MessageVo> chatRecords;
         if (redisKey.equals(CACHE_CHAT_HALL)) {
-            chatRecords = (List<MessageVo>) valueOperations.get(redisKey);
+            chatRecords = valueOperations.get(redisKey);
         } else {
-            chatRecords = (List<MessageVo>) valueOperations.get(redisKey + id);
+            chatRecords = valueOperations.get(redisKey + id);
         }
         return chatRecords;
     }
@@ -143,7 +143,7 @@ public class ChatServiceImpl extends ServiceImpl<ChatMapper, Chat>
     @Override
     public void saveCache(String redisKey, String id, List<MessageVo> messageVos) {
         try {
-            ValueOperations<String, Object> valueOperations = redisTemplate.opsForValue();
+            ValueOperations<String, List<MessageVo>> valueOperations = redisTemplate.opsForValue();
             // 解决缓存雪崩
             int i = RandomUtil.randomInt(2, 3);
             if (redisKey.equals(CACHE_CHAT_HALL)) {
